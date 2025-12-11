@@ -27,6 +27,9 @@ class FaceEmbeddingHelper:
     Embeddings are 128-dimensional vectors capturing facial characteristics.
     """
 
+    # Standard image size for consistent face detection and embedding
+    NORMALIZE_SIZE = (256, 256)
+
     def __init__(self, model_name: str = "Facenet", cache_dir: str = "data/store/user_images"):
         """
         Initialize face embedding model.
@@ -116,6 +119,43 @@ class FaceEmbeddingHelper:
                 print(f"Error downloading image from {image_url}: {str(e)}")
                 return None
 
+    def normalize_image(self, image: Image.Image) -> Image.Image:
+        """
+        Normalize image size and format for consistent embedding generation.
+        Resizes to a standard size with aspect-preserving center-crop.
+        
+        Args:
+            image: PIL Image object
+            
+        Returns:
+            Normalized PIL Image (256x256)
+        """
+        image = image.convert('RGB')
+        
+        # Calculate aspect-preserving resize and center-crop
+        aspect = image.width / image.height
+        target_width, target_height = self.NORMALIZE_SIZE
+        target_aspect = target_width / target_height
+        
+        if aspect > target_aspect:
+            # Image is wider, scale by height
+            new_height = target_height
+            new_width = int(new_height * aspect)
+        else:
+            # Image is taller, scale by width
+            new_width = target_width
+            new_height = int(new_width / aspect)
+        
+        # Resize with high-quality resampling
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Center crop to target size
+        left = (image.width - target_width) // 2
+        top = (image.height - target_height) // 2
+        image = image.crop((left, top, left + target_width, top + target_height))
+        
+        return image
+
     def get_face_embedding(self, image_source: str, user_id: str = None) -> Optional[List[float]]:
         """
         Extract facial embedding from an image using DeepFace.
@@ -144,13 +184,24 @@ class FaceEmbeddingHelper:
             image = self.download_image(image_source, user_id)
             if image is None:
                 return None
-            # Ensure the image is written to disk (download_image already tries when user_id is set)
+            # Normalize image size for consistent embedding
+            image = self.normalize_image(image)
+            # Ensure the image is written to disk
             try:
                 image.save(cache_path, 'JPEG', quality=95)
             except Exception:
-                # If save fails, we cannot proceed with file-path based represent
                 print(f"Warning: Failed to persist cached image at {cache_path}")
             img_path = cache_path
+        
+        # Normalize local/cached file before embedding for consistency
+        if os.path.isfile(img_path):
+            try:
+                local_image = Image.open(img_path).convert('RGB')
+                normalized = self.normalize_image(local_image)
+                # Save normalized version back
+                normalized.save(img_path, 'JPEG', quality=95)
+            except Exception as e:
+                print(f"Warning: Could not normalize image {img_path}: {str(e)}")
 
         # Extract facial embedding using DeepFace with a file path
         try:
