@@ -1,34 +1,37 @@
 import os
 import requests
 from io import BytesIO
-from dotenv import load_dotenv
-from openai import AzureOpenAI
+from typing import Optional, List
 from PIL import Image
+import torch
+from transformers import CLIPProcessor, CLIPModel
 
 
 class ImageHelper:
-    """Helper class to generate embeddings for images using Azure OpenAI Vision."""
+    """
+    Helper class to generate embeddings for images using CLIP (offline).
+    Uses local CLIP model for completely offline image processing.
+    """
 
-    def __init__(self):
-        load_dotenv()
+    def __init__(self, model_name: str = "openai/clip-vit-base-patch32"):
+        """
+        Initialize CLIP model for offline image embeddings.
         
-        self.api_key = os.getenv("AZURE_OPENAI_KEY")
-        self.api_version = os.getenv("AZURE_OPENAI_API_VERSION")
-        self.instance_name = os.getenv("AZURE_OPENAI_INSTANCE_NAME")
-        self.vision_deployment = os.getenv("AZURE_OPENAI_VISION_DEPLOYMENT_NAME", "gpt-4-vision")
-        self.embedding_deployment = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT_NAME")
+        Args:
+            model_name: HuggingFace model identifier for CLIP
+                       Default: openai/clip-vit-base-patch32 (produces 512-dim embeddings)
+                       Alternative: openai/clip-vit-large-patch14 (produces 768-dim embeddings)
+        """
+        print(f"Loading CLIP model: {model_name}")
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"Using device: {self.device}")
         
-        # Construct the endpoint
-        self.endpoint = f"https://{self.instance_name}.openai.azure.com/"
-        
-        # Initialize Azure OpenAI client
-        self.client = AzureOpenAI(
-            api_key=self.api_key,
-            api_version=self.api_version,
-            azure_endpoint=self.endpoint
-        )
+        self.model = CLIPModel.from_pretrained(model_name).to(self.device)
+        self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.embedding_dim = self.model.config.projection_dim
+        print(f"CLIP model loaded. Embedding dimension: {self.embedding_dim}")
 
-    def download_image(self, image_url: str) -> Image.Image:
+    def download_image(self, image_url: str) -> Optional[Image.Image]:
         """
         Download an image from a URL and return as PIL Image.
         
@@ -36,121 +39,117 @@ class ImageHelper:
             image_url: URL of the image to download
             
         Returns:
-            PIL Image object
+            PIL Image object or None if download fails
         """
         try:
             response = requests.get(image_url, timeout=10)
             response.raise_for_status()
-            image = Image.open(BytesIO(response.content))
+            image = Image.open(BytesIO(response.content)).convert('RGB')
             return image
         except Exception as e:
             print(f"Error downloading image from {image_url}: {str(e)}")
             return None
 
-    def analyze_image(self, image_url: str) -> str:
+    def get_image_embedding(self, image_url: str) -> Optional[List[float]]:
         """
-        Analyze an image using Azure OpenAI Vision and return a description.
-        
-        Args:
-            image_url: URL of the image to analyze
-            
-        Returns:
-            Text description of the image content
-        """
-        try:
-            response = self.client.chat.completions.create(
-                model=self.vision_deployment,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": image_url
-                                }
-                            },
-                            {
-                                "type": "text",
-                                "text": "Describe what you see in this image in 1-2 sentences, focusing on the main product, its features, and appearance."
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=200
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Error analyzing image from {image_url}: {str(e)}")
-            return ""
-
-    def get_image_embedding(self, image_url: str, product_description: str = "") -> list:
-        """
-        Generate an embedding for an image by analyzing it and embedding the analysis.
+        Generate an embedding for an image using CLIP (offline).
         
         Args:
             image_url: URL of the image
-            product_description: Optional product description to include in analysis
             
         Returns:
-            A list representing the embedding vector, or None if analysis fails
+            List representing the embedding vector (512 or 768 dims), or None if fails
         """
-        # Analyze the image to get a text description
-        image_analysis = self.analyze_image(image_url)
-        
-        if not image_analysis:
+        # Download image
+        image = self.download_image(image_url)
+        if image is None:
             return None
         
-        # Combine image analysis with product description for richer embedding
-        combined_text = f"{image_analysis}. {product_description}" if product_description else image_analysis
-        
-        # Generate embedding from the combined text
         try:
-            response = self.client.embeddings.create(
-                input=combined_text,
-                model=self.embedding_deployment
-            )
-            return response.data[0].embedding
+            # Process image with CLIP
+            inputs = self.processor(images=image, return_tensors="pt").to(self.device)
+            
+            # Generate image embedding
+            with torch.no_grad():
+                image_features = self.model.get_image_features(**inputs)
+                # Normalize embeddings
+                image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
+            
+            # Convert to list
+            embedding = image_features[0].cpu().numpy().tolist()
+            return embedding
+        
         except Exception as e:
             print(f"Error generating embedding for image {image_url}: {str(e)}")
             return None
 
-    def get_image_embeddings_batch(self, products: list) -> list:
+    def get_image_embeddings_batch(self, products: List[dict]) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple product images in batch.
         
         Args:
-            products: List of dicts with 'image_url' and 'description' keys
+            products: List of dicts with 'image_url' key
             
         Returns:
             List of embedding vectors (same length as input, None for failed items)
         """
         embeddings = []
         
-        for product in products:
+        for i, product in enumerate(products, 1):
             image_url = product.get("image_url")
-            description = product.get("description", "")
             
             if image_url:
-                embedding = self.get_image_embedding(image_url, description)
+                print(f"  Processing {i}/{len(products)}: {product.get('title', 'Unknown')}...")
+                embedding = self.get_image_embedding(image_url)
                 embeddings.append(embedding)
             else:
                 embeddings.append(None)
         
         return embeddings
 
-    def get_text_embedding_from_image(self, image_url: str) -> str:
+    def get_text_image_embedding(self, text_or_image) -> Optional[List[float]]:
         """
-        Get rich text description of an image for text-based embedding.
-        Useful for hybrid search combining text and image modalities.
+        Generate embeddings for either text or image using CLIP's unified space.
+        CLIP can embed both text and images in the same semantic space.
         
         Args:
-            image_url: URL of the image
+            text_or_image: Either a text string or image URL
             
         Returns:
-            Text description of the image
+            Embedding vector in CLIP space
         """
-        return self.analyze_image(image_url)
+        # If it looks like a URL, process as image
+        if isinstance(text_or_image, str) and text_or_image.startswith(('http://', 'https://')):
+            return self.get_image_embedding(text_or_image)
+        
+        # Otherwise process as text
+        try:
+            inputs = self.processor(text=text_or_image, return_tensors="pt").to(self.device)
+            with torch.no_grad():
+                text_features = self.model.get_text_features(**inputs)
+                text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
+            
+            return text_features[0].cpu().numpy().tolist()
+        except Exception as e:
+            print(f"Error generating text embedding: {str(e)}")
+            return None
+
+    def calculate_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
+        """
+        Calculate cosine similarity between two embeddings.
+        
+        Args:
+            embedding1: First embedding vector
+            embedding2: Second embedding vector
+            
+        Returns:
+            Similarity score (0-1)
+        """
+        emb1 = torch.tensor(embedding1, device=self.device)
+        emb2 = torch.tensor(embedding2, device=self.device)
+        
+        similarity = torch.nn.functional.cosine_similarity(emb1, emb2, dim=0)
+        return similarity.item()
 
 
 # Singleton instance
@@ -163,3 +162,4 @@ def get_image_helper():
     if _image_helper is None:
         _image_helper = ImageHelper()
     return _image_helper
+

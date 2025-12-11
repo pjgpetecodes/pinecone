@@ -45,15 +45,17 @@ For text-based search:
 pip install pinecone python-dotenv openai
 ```
 
-For multimodal search (text + images), also install:
+For multimodal search (text + images) using **offline CLIP**:
 ```powershell
-pip install pillow requests
+pip install pinecone python-dotenv openai pillow requests torch transformers
 ```
 
 Or install all at once:
 ```powershell
-pip install pinecone python-dotenv openai pillow requests
+pip install pinecone python-dotenv openai pillow requests torch transformers
 ```
+
+**Note:** `torch` and `transformers` are required for offline CLIP image embeddings. The first run will download the CLIP model (~350MB) and cache it locally.
 
 ### 4. Configure Environment Variables
 
@@ -66,8 +68,9 @@ AZURE_OPENAI_API_VERSION=2023-05-15
 AZURE_OPENAI_INSTANCE_NAME=<your-instance-name>
 AZURE_OPENAI_DEPLOYMENT_NAME=gpt4o
 AZURE_OPENAI_EMBED_DEPLOYMENT_NAME=embeddingmodel
-AZURE_OPENAI_VISION_DEPLOYMENT_NAME=gpt-4-vision
 ```
+
+**Note:** Multimodal image search uses offline CLIP and does not require Azure OpenAI Vision API credentials.
 
 ### 5. Start Pinecone Local with Docker
 
@@ -242,46 +245,55 @@ python query_products.py --interactive
 
 **Special feature:** Leave the query blank and provide a User ID to see recommendations based on their last purchase (pure similarity, no category filters).
 
-### Step 3: Index Product Images (Multimodal Search)
+### Step 3: Index Product Images (Multimodal Search - Offline CLIP)
 
-Generate embeddings for product images for hybrid text+image search:
+Generate embeddings for product images using **offline CLIP** (no API calls needed):
 
 ```powershell
 python index_images.py
 ```
 
 This will:
-1. Analyze each product image using Azure OpenAI Vision
-2. Generate rich image descriptions based on visual content
-3. Create image embeddings (1536-dimensional vectors)
+1. Download and cache the CLIP model locally (~350MB, one-time)
+2. Analyze each product image using CLIP (completely offline)
+3. Generate 512-dimensional image embeddings (or 768 depending on CLIP variant)
 4. Store image vectors alongside text vectors in Pinecone
 5. Enable hybrid search combining text and image modalities
 
+**Why CLIP?**
+- ✅ Completely offline - no API calls to external services
+- ✅ Free and open-source (from OpenAI)
+- ✅ Understands both text and images in same embedding space
+- ✅ Fast once model is cached
+- ✅ No authentication required
+- ✅ Same concept as Pinecone's JavaScript implementation with transformers.js
+
 **Output:**
 ```
+Initializing CLIP model for offline image embeddings...
+✓ CLIP initialized. Embedding dimension: 512
+
 Loading products...
 Loaded 20 products
 
-Generating image embeddings...
+Generating image embeddings using CLIP (offline)...
+Processing images - this may take a few minutes on first run (downloading model cache)...
+
   Processing PROD-001: Wireless Bluetooth Headphones...
   Processing PROD-002: Organic Cotton Yoga Mat...
   [... more products ...]
 
-Generated embeddings for 20 product images
-Failed: 0
+✓ Generated embeddings for 20 product images
+✓ Upserted batch 1 (20 image vectors)
 
-Upserting 20 image vectors...
-  Upserted batch 1 (20 image vectors)
-
+============================================================
 Image indexing complete!
-Total image vectors stored: 20
-Total index size: 40 vectors (text + image)
+============================================================
+✓ Total image vectors stored: 20
+✓ Total index size: 40 vectors (text + image)
+✓ Embedding dimension: 512
+✓ All processing done offline using CLIP
 ```
-
-**New Files Created:**
-- `image_helper.py` - Azure OpenAI Vision wrapper for image analysis and embeddings
-- `index_images.py` - Script to generate and index image embeddings
-- `query_multimodal.py` - Interactive multimodal search interface
 
 ### Step 4: Run Multimodal Search
 
@@ -589,28 +601,35 @@ Pinecone efficiently finds the top-5 most similar vectors **that also match all 
 
 ## Concepts Illustrated
 
-### Multimodal Search (Image + Text)
-This branch extends the recommender system with multimodal capabilities:
+### Multimodal Search (Image + Text) - Offline CLIP
+This branch extends the recommender system with multimodal capabilities using **offline CLIP**:
 - **Text search**: Query products by description, category, or features
 - **Image search**: Upload or reference an image to find similar products
 - **Hybrid search**: Combine text and image queries for richer results
-- **Dual embeddings**: Store both text and image vectors in Pinecone
-- **Weighted ranking**: Adjust importance between text (60%) and image (40%) matches
+- **Offline processing**: No API calls - uses local CLIP model cached on disk
+- **Dual embeddings**: Store both text (1536-dim) and image (512-dim) vectors in Pinecone
+- **Weighted ranking**: Adjust importance between text and image matches
 
-**How it works:**
-1. **Image Analysis**: Azure OpenAI Vision analyzes each product image and generates a detailed text description
-2. **Image Embeddings**: The description is embedded using the same 1536-dimensional embedding model
-3. **Dual Storage**: Each product has two vectors:
-   - Text vector from product title/description/metadata
-   - Image vector from visual content analysis
-4. **Hybrid Queries**: User can provide text, image, or both, with weighted importance for ranking
-5. **Cross-modal Discovery**: Find products using different modalities (e.g., search by image to find similar products)
+**How it works (completely offline):**
+1. **CLIP Model**: OpenAI's CLIP (Contrastive Language-Image Pre-training) understands both text and images
+2. **Image Processing**: Download image → Process with CLIP → Generate 512-dimensional embedding
+3. **Local Execution**: Everything runs on your machine - no external API calls
+4. **Unified Space**: Text and image embeddings are semantically comparable (CLIP's superpower!)
+5. **Hybrid Queries**: Search by text, image, or both, with adjustable weighting
 
-**Schema with Multimodal Support:**
+**Advantages over cloud-based approaches:**
+- ✅ No API keys or authentication needed (except Pinecone)
+- ✅ No rate limiting or quota concerns
+- ✅ No streaming costs for image analysis
+- ✅ All processing stays on your machine (privacy)
+- ✅ Model cached after first download (~350MB)
+- ✅ Compatible with transformers.js (Pinecone's JavaScript approach)
+
+**Schema with Offline Multimodal Support:**
 ```json
 Text Vector (PROD-001):
   id: "PROD-001"
-  values: [0.123, -0.456, 0.789, ...]  // 1536 dimensions from text
+  values: [0.123, -0.456, 0.789, ...]  // 1536 dimensions (from text embedding)
   metadata: {
     product_id: "PROD-001",
     title: "Wireless Bluetooth Headphones",
@@ -620,7 +639,7 @@ Text Vector (PROD-001):
 
 Image Vector (PROD-001-image):
   id: "PROD-001-image"
-  values: [0.234, -0.567, 0.890, ...]  // 1536 dimensions from image
+  values: [0.234, -0.567, 0.890, ...]  // 512 dimensions (from CLIP image embedding)
   metadata: {
     product_id: "PROD-001",
     title: "Wireless Bluetooth Headphones",

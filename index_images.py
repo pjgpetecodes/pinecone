@@ -1,7 +1,7 @@
 """
-Index Product Images for Multimodal Search
-Generates image embeddings and stores them alongside text embeddings.
-Supports searching products by both text descriptions and images.
+Index Product Images for Multimodal Search (Offline using CLIP)
+Generates image embeddings using local CLIP model and stores them alongside text embeddings.
+Supports searching products by both text descriptions and images - completely offline!
 """
 
 import os
@@ -24,11 +24,13 @@ if not pc.has_index(index_name):
 
 index = pc.Index(index_name)
 
-# Initialize Image Helper
+# Initialize Image Helper (downloads CLIP model on first run)
+print("Initializing CLIP model for offline image embeddings...")
 image_helper = ImageHelper()
+print(f"✓ CLIP initialized. Embedding dimension: {image_helper.embedding_dim}")
 
 # Load product data
-print("Loading products...")
+print("\nLoading products...")
 products = load_products()
 orders = load_orders()
 avg_ratings = calculate_average_ratings(products, orders)
@@ -36,79 +38,75 @@ avg_ratings = calculate_average_ratings(products, orders)
 print(f"Loaded {len(products)} products")
 
 # Generate image embeddings and store as separate vectors
-print("\nGenerating image embeddings...")
+print("\nGenerating image embeddings using CLIP (offline)...")
+print(f"Processing images - this may take a few minutes on first run (downloading model cache)...\n")
 
 image_vectors = []
 products_with_images = 0
 failed_images = 0
 
-for product in products:
+# Process images
+image_embeddings = image_helper.get_image_embeddings_batch(products)
+
+for i, product in enumerate(products):
+    embedding = image_embeddings[i]
     image_url = product.get('image_url')
     
-    if not image_url:
-        print(f"  {product['id']}: No image URL")
-        continue
-    
-    print(f"  Processing {product['id']}: {product['title']}...")
-    
-    try:
-        # Generate image embedding
-        image_embedding = image_helper.get_image_embedding(image_url, product['description'])
+    if embedding is not None:
+        # Create metadata that indicates this is an image vector
+        metadata = {
+            'product_id': product['id'],
+            'title': product['title'],
+            'category': product['category'],
+            'tags': product['tags'],
+            'price': product['price'],
+            'region': product['region'],
+            'avg_rating': avg_ratings[product['id']],
+            'created_at': product['created_at'],
+            'image_url': image_url,
+            'vector_type': 'image'  # Distinguish from text vectors
+        }
         
-        if image_embedding:
-            # Create metadata that indicates this is an image vector
-            metadata = {
-                'product_id': product['id'],
-                'title': product['title'],
-                'category': product['category'],
-                'tags': product['tags'],
-                'price': product['price'],
-                'region': product['region'],
-                'avg_rating': avg_ratings[product['id']],
-                'created_at': product['created_at'],
-                'image_url': image_url,
-                'vector_type': 'image'  # Distinguish from text vectors
-            }
-            
-            image_vectors.append({
-                'id': f"{product['id']}-image",  # Suffix to distinguish from text vector
-                'values': image_embedding,
-                'metadata': metadata
-            })
-            
-            products_with_images += 1
-            time.sleep(0.5)  # Rate limiting for API calls
-        else:
-            print(f"  {product['id']}: Failed to generate image embedding")
-            failed_images += 1
-    
-    except Exception as e:
-        print(f"  {product['id']}: Error - {str(e)}")
+        image_vectors.append({
+            'id': f"{product['id']}-image",  # Suffix to distinguish from text vector
+            'values': embedding,
+            'metadata': metadata
+        })
+        
+        products_with_images += 1
+    else:
+        print(f"  ⚠ {product['id']}: Failed to generate image embedding")
         failed_images += 1
 
-print(f"\nGenerated embeddings for {products_with_images} product images")
-print(f"Failed: {failed_images}")
+print(f"\n✓ Generated embeddings for {products_with_images} product images")
+if failed_images > 0:
+    print(f"⚠ Failed: {failed_images}")
 
 # Upsert image vectors in batches
 if image_vectors:
-    print(f"\nUpserting {len(image_vectors)} image vectors...")
+    print(f"\nUpserting {len(image_vectors)} image vectors to Pinecone...")
     
-    batch_size = 50  # Smaller batch size for image vectors due to API costs
+    batch_size = 100
     for i in range(0, len(image_vectors), batch_size):
         batch = image_vectors[i:i + batch_size]
         try:
             index.upsert(vectors=batch)
-            print(f"  Upserted batch {i // batch_size + 1} ({len(batch)} image vectors)")
-            time.sleep(2)  # Longer wait between batches to avoid rate limiting
+            print(f"  ✓ Upserted batch {i // batch_size + 1} ({len(batch)} image vectors)")
+            time.sleep(1)
         except Exception as e:
-            print(f"  Error upserting batch {i // batch_size + 1}: {e}")
-            time.sleep(5)
+            print(f"  ✗ Error upserting batch {i // batch_size + 1}: {e}")
+            time.sleep(3)
             try:
                 index.upsert(vectors=batch)
-                print(f"  Upserted batch {i // batch_size + 1} ({len(batch)} image vectors) on retry")
+                print(f"  ✓ Upserted batch {i // batch_size + 1} ({len(batch)} image vectors) on retry")
             except Exception as retry_error:
-                print(f"  Failed to upsert batch {i // batch_size + 1}: {retry_error}")
+                print(f"  ✗ Failed to upsert batch {i // batch_size + 1}: {retry_error}")
 
-print("\nImage indexing complete!")
-print(f"Total image vectors stored: {products_with_images}")
-print(f"Total index size: {len(products) + products_with_images} vectors (text + image)")
+print("\n" + "="*60)
+print("Image indexing complete!")
+print("="*60)
+print(f"✓ Total image vectors stored: {products_with_images}")
+print(f"✓ Total index size: {len(products) + products_with_images} vectors (text + image)")
+print(f"✓ Embedding dimension: {image_helper.embedding_dim}")
+print(f"✓ All processing done offline using CLIP")
+
