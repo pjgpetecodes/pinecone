@@ -26,8 +26,8 @@ index = pc.Index(index_name)
 
 # Initialize Image Helper (downloads CLIP model on first run)
 print("Initializing CLIP model for offline image embeddings...")
-image_helper = ImageHelper()
-print(f"✓ CLIP initialized. Embedding dimension: {image_helper.embedding_dim}")
+image_helper = ImageHelper(target_dim=1536)  # Match Azure OpenAI embedding dimension
+print(f"✓ CLIP initialized. Native: {image_helper.clip_dim}D, Padded to: {image_helper.target_dim}D")
 
 # Load product data
 print("\nLoading products...")
@@ -107,6 +107,6 @@ print("Image indexing complete!")
 print("="*60)
 print(f"✓ Total image vectors stored: {products_with_images}")
 print(f"✓ Total index size: {len(products) + products_with_images} vectors (text + image)")
-print(f"✓ Embedding dimension: {image_helper.embedding_dim}")
+print(f"✓ CLIP native dimension: {image_helper.clip_dim}D (padded to {image_helper.target_dim}D)")
 print(f"✓ All processing done offline using CLIP")
 

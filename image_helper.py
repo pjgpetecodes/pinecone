@@ -13,7 +13,7 @@ class ImageHelper:
     Uses local CLIP model for completely offline image processing.
     """
 
-    def __init__(self, model_name: str = "openai/clip-vit-base-patch32"):
+    def __init__(self, model_name: str = "openai/clip-vit-base-patch32", target_dim: int = 1536):
         """
         Initialize CLIP model for offline image embeddings.
         
@@ -21,6 +21,8 @@ class ImageHelper:
             model_name: HuggingFace model identifier for CLIP
                        Default: openai/clip-vit-base-patch32 (produces 512-dim embeddings)
                        Alternative: openai/clip-vit-large-patch14 (produces 768-dim embeddings)
+            target_dim: Target dimension for embeddings (default 1536 to match Azure OpenAI)
+                       CLIP embeddings will be padded with zeros to match this dimension
         """
         print(f"Loading CLIP model: {model_name}")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,8 +30,9 @@ class ImageHelper:
         
         self.model = CLIPModel.from_pretrained(model_name).to(self.device)
         self.processor = CLIPProcessor.from_pretrained(model_name)
-        self.embedding_dim = self.model.config.projection_dim
-        print(f"CLIP model loaded. Embedding dimension: {self.embedding_dim}")
+        self.clip_dim = self.model.config.projection_dim
+        self.target_dim = target_dim
+        print(f"CLIP model loaded. Native dimension: {self.clip_dim}, Target dimension: {self.target_dim}")
 
     def download_image(self, image_url: str) -> Optional[Image.Image]:
         """
@@ -77,6 +80,11 @@ class ImageHelper:
             
             # Convert to list
             embedding = image_features[0].cpu().numpy().tolist()
+            
+            # Pad embedding to target dimension if needed
+            if len(embedding) < self.target_dim:
+                embedding = embedding + [0.0] * (self.target_dim - len(embedding))
+            
             return embedding
         
         except Exception as e:
@@ -129,7 +137,13 @@ class ImageHelper:
                 text_features = self.model.get_text_features(**inputs)
                 text_features = text_features / text_features.norm(p=2, dim=-1, keepdim=True)
             
-            return text_features[0].cpu().numpy().tolist()
+            embedding = text_features[0].cpu().numpy().tolist()
+            
+            # Pad embedding to target dimension if needed
+            if len(embedding) < self.target_dim:
+                embedding = embedding + [0.0] * (self.target_dim - len(embedding))
+            
+            return embedding
         except Exception as e:
             print(f"Error generating text embedding: {str(e)}")
             return None
