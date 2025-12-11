@@ -40,8 +40,19 @@ python -m venv .venv
 
 ### 3. Install Dependencies
 
+For text-based search:
 ```powershell
 pip install pinecone python-dotenv openai
+```
+
+For multimodal search (text + images), also install:
+```powershell
+pip install pillow requests
+```
+
+Or install all at once:
+```powershell
+pip install pinecone python-dotenv openai pillow requests
 ```
 
 ### 4. Configure Environment Variables
@@ -55,6 +66,7 @@ AZURE_OPENAI_API_VERSION=2023-05-15
 AZURE_OPENAI_INSTANCE_NAME=<your-instance-name>
 AZURE_OPENAI_DEPLOYMENT_NAME=gpt4o
 AZURE_OPENAI_EMBED_DEPLOYMENT_NAME=embeddingmodel
+AZURE_OPENAI_VISION_DEPLOYMENT_NAME=gpt-4-vision
 ```
 
 ### 5. Start Pinecone Local with Docker
