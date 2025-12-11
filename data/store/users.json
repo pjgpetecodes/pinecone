@@ -62,5 +62,21 @@
     "preferred_categories": ["Electronics", "Accessories"],
     "preferred_regions": ["North America", "Asia"],
     "joined_at": "2023-04-20"
+  },
+  {
+    "id": "USER-009",
+    "name": "Isabella Moore",
+    "segment": "fitness-enthusiast",
+    "preferred_categories": ["Fitness", "Outdoor"],
+    "preferred_regions": ["North America", "Europe"],
+    "joined_at": "2023-12-01"
+  },
+  {
+    "id": "USER-010",
+    "name": "Jason Patel",
+    "segment": "tech-professional",
+    "preferred_categories": ["Electronics", "Home Office"],
+    "preferred_regions": ["Asia", "North America"],
+    "joined_at": "2023-12-05"
   }
 ]

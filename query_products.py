@@ -72,8 +72,7 @@ def query_products(query_text: Optional[str],
                   region: str = None,
                   min_price: float = None,
                   max_price: float = None,
-                  top_k: int = 5,
-                  popularity_boost: bool = True) -> list:
+                  top_k: int = 5) -> list:
     """
     Query products with personalization and filtering.
     
@@ -115,15 +114,15 @@ def query_products(query_text: Optional[str],
                 f"Region: {last['region']}"
             )
             query_seeded_from_last_order = True
-            popularity_boost = False  # No boosting per request
             print(f"\n🆕 Recommendations based on last purchase: {last['title']} ({last['product_id']})")
         else:
             print("\nNo query provided and no orders found for this user. Please enter a query or choose a user with purchase history.")
             return []
     
     # Build metadata filter
+    # Skip user preferences when seeding from last purchase to get truly similar items
     metadata_filter = build_metadata_filter(
-        user_context=user_context,
+        user_context=None if query_seeded_from_last_order else user_context,
         category=category,
         region=region,
         min_price=min_price,
@@ -139,12 +138,9 @@ def query_products(query_text: Optional[str],
     # Query Pinecone
     index = pc.Index(index_name)
     
-    # Fetch more results if we need to apply popularity boosting
-    fetch_k = top_k * 3 if popularity_boost else top_k
-    
     results = index.query(
         vector=query_vector,
-        top_k=fetch_k,
+        top_k=top_k,
         include_metadata=True,
         filter=metadata_filter
     )
@@ -152,18 +148,6 @@ def query_products(query_text: Optional[str],
     # Remove the exact last purchased product from recommendations
     if last_product_id and results.matches:
         results.matches = [m for m in results.matches if m.metadata.get('product_id') != last_product_id]
-    
-    # Apply popularity boost if enabled
-    if popularity_boost and results.matches:
-        for match in results.matches:
-            popularity = match.metadata.get('popularity', 5.0)
-            # Boost score by popularity factor (normalized)
-            popularity_factor = 1 + (popularity / 20)  # 1.0 to 1.5x boost
-            match.score = match.score * popularity_factor
-        
-        # Re-sort by boosted score
-        results.matches.sort(key=lambda x: x.score, reverse=True)
-        results.matches = results.matches[:top_k]
     
     return results.matches
 
@@ -188,7 +172,7 @@ def display_results(matches: list, user_context: dict = None):
         
         print(f"{i}. {metadata['title']}")
         print(f"   Category: {metadata['category']} | Region: {metadata['region']}")
-        print(f"   Price: ${metadata['price']} | Popularity: {metadata['popularity']}/10.0")
+        print(f"   Price: ${metadata['price']} | Avg Rating: {metadata['avg_rating']}/5.0")
         print(f"   Score: {match.score:.4f}")
         
         if is_purchased:
@@ -200,6 +184,98 @@ def display_results(matches: list, user_context: dict = None):
             print(f"   Tags: {tags_str}")
         
         print()
+
+
+def run_guided_tour():
+    """
+    Run a short guided tour with real-world scenarios.
+    """
+    print("\n" + "="*80)
+    print("GUIDED TOUR: Everyday Recommender Scenarios")
+    print("="*80)
+    
+    print("""
+This tour demonstrates four real-world personalized recommendation scenarios:
+
+  1️⃣  Just Purchased → You Might Also Like
+      After a purchase, suggest related items without re-showing the bought product.
+      
+  2️⃣  Welcome Back → Because You Bought Before
+      Logged-in user: use preferences and history to suggest next picks.
+      
+  3️⃣  Active Search → Closest Match + Related
+      User searches for something; we combine similarity, preferences & popularity.
+      
+  4️⃣  Also Popular in Your Crowd
+      Show segment overlap: fitness enthusiasts discovering shared purchases.
+
+Each scenario uses different users, queries, and filters to showcase the full 
+power of metadata filtering, personalization, and vector similarity.
+""")
+    
+    input("Press Enter to begin the tour...")
+
+    scenarios = [
+        {
+            "title": "Just purchased → You might also like",
+            "description": "User just bought something; suggest related items without re-showing the purchase.",
+            "query": None,  # seed from last order
+            "user_id": "USER-002",  # tech-professional
+            "category": None,
+            "region": None
+        },
+        {
+            "title": "Welcome back → Because you bought before",
+            "description": "Logged-in user, use preferences and history to suggest next picks.",
+            "query": "kitchen essentials",
+            "user_id": "USER-005",  # home-chef
+            "category": None,
+            "region": None
+        },
+        {
+            "title": "Active search → Closest match + related",
+            "description": "User searches; we combine similarity, prefs, and popularity.",
+            "query": "wireless headphones",
+            "user_id": "USER-010",  # tech-professional (new)
+            "category": None,
+            "region": None
+        },
+        {
+            "title": "Also popular in your crowd",
+            "description": "Show segment overlap (fitness enthusiasts share buys).",
+            "query": "fitness gear",
+            "user_id": "USER-009",  # fitness-enthusiast (new)
+            "category": None,
+            "region": None
+        }
+    ]
+
+    for scenario in scenarios:
+        print(f"\n{'-'*80}")
+        print(f"{scenario['title']}")
+        print(f"{scenario['description']}")
+        print(f"User: {scenario['user_id']}")
+        if scenario['query']:
+            print(f"Query: {scenario['query']}")
+        else:
+            print("Query: (skipped, using last purchase)")
+
+        matches = query_products(
+            query_text=scenario['query'],
+            user_id=scenario['user_id'],
+            category=scenario['category'],
+            region=scenario['region'],
+            top_k=5
+        )
+
+        user_context = get_user_context(scenario['user_id'])
+        display_results(matches, user_context)
+
+        input("\nPress Enter for the next scenario...")
+
+    print("\n" + "="*80)
+    print("End of guided tour. Switching to interactive mode...")
+    print("="*80)
 
 
 def run_interactive_query():
@@ -218,10 +294,12 @@ def run_interactive_query():
     print("  USER-006: Frank (remote-worker)")
     print("  USER-007: Grace (outdoor-adventurer)")
     print("  USER-008: Henry (gadget-lover)")
+    print("  USER-009: Isabella (fitness-enthusiast)")
+    print("  USER-010: Jason (tech-professional)")
     
     while True:
         print("\n" + "-"*80)
-        query = input("\n🔍 Enter search query (or 'quit' to exit): ").strip()
+        query = input("\n🔍 Enter search query (press Enter to skip and use last purchase, or type 'quit' to exit): ").strip()
         
         if query.lower() in ['quit', 'exit', 'q']:
             print("\nThank you for using the Product Recommender!")
@@ -251,8 +329,7 @@ def run_interactive_query():
                 user_id=user_id if user_id else None,
                 category=category,
                 region=region,
-                top_k=5,
-                popularity_boost=bool(query)  # disable boost when using last-order seeding
+                top_k=5
             )
             
             # Get user context for display
@@ -272,9 +349,12 @@ def run_interactive_query():
 if __name__ == "__main__":
     # Check if running interactively or with example queries
     import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == "--examples":
-        # Run example queries
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--interactive":
+        # Run interactive mode
+        run_interactive_query()
+
+    elif len(sys.argv) > 1 and sys.argv[1] == "--examples":
         print("\n" + "="*80)
         print("EXAMPLE QUERIES")
         print("="*80)
@@ -318,7 +398,8 @@ if __name__ == "__main__":
             display_results(matches, user_context)
             
             input("\nPress Enter to continue to next example...")
-    
+
     else:
-        # Run interactive mode
+        # Run guided tour by default
+        run_guided_tour()
         run_interactive_query()

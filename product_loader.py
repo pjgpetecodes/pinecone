@@ -68,19 +68,19 @@ def load_orders(file_path: str = "data/store/orders.csv") -> List[Dict[str, Any]
     return orders
 
 
-def calculate_popularity_scores(products: List[Dict[str, Any]], 
-                                orders: List[Dict[str, Any]]) -> Dict[str, float]:
+def calculate_average_ratings(products: List[Dict[str, Any]], 
+                               orders: List[Dict[str, Any]]) -> Dict[str, float]:
     """
-    Calculate updated popularity scores based on recent orders.
+    Calculate average ratings for products based on customer reviews.
     
     Args:
         products: List of products
-        orders: List of orders
+        orders: List of orders (containing ratings)
         
     Returns:
-        Dictionary mapping product_id to updated popularity score
+        Dictionary mapping product_id to average rating
     """
-    # Count orders per product
+    # Aggregate ratings per product
     order_counts = {}
     for order in orders:
         product_id = order['product_id']
@@ -90,31 +90,30 @@ def calculate_popularity_scores(products: List[Dict[str, Any]],
         order_counts[product_id]['count'] += 1
         order_counts[product_id]['total_rating'] += rating
     
-    # Update popularity: base + (order_count * avg_rating / 2)
-    popularity_scores = {}
+    # Calculate average rating for each product
+    avg_ratings = {}
     for product in products:
         product_id = product['id']
-        base_popularity = product['popularity']
         
         if product_id in order_counts:
             count = order_counts[product_id]['count']
             avg_rating = order_counts[product_id]['total_rating'] / count
-            boost = (count * avg_rating) / 2
-            popularity_scores[product_id] = min(10.0, base_popularity + boost)
+            avg_ratings[product_id] = round(avg_rating, 2)
         else:
-            popularity_scores[product_id] = base_popularity
+            # No orders yet; use neutral rating
+            avg_ratings[product_id] = 3.0
     
-    return popularity_scores
+    return avg_ratings
 
 
 def prepare_product_for_embedding(product: Dict[str, Any], 
-                                  popularity_score: float) -> tuple[str, Dict[str, Any]]:
+                                  avg_rating: float) -> tuple[str, Dict[str, Any]]:
     """
     Prepare a product for embedding by creating searchable text and metadata.
     
     Args:
         product: Product dictionary
-        popularity_score: Updated popularity score
+        avg_rating: Average customer rating
         
     Returns:
         Tuple of (embedding_text, metadata_dict)
@@ -137,7 +136,7 @@ Region: {product['region']}
         'tags': product['tags'],
         'price': product['price'],
         'region': product['region'],
-        'popularity': round(popularity_score, 2),
+        'avg_rating': avg_rating,
         'created_at': product['created_at']
     }
     
@@ -147,7 +146,7 @@ Region: {product['region']}
 def prepare_products_for_indexing(products_file: str = "data/store/products.json",
                                   orders_file: str = "data/store/orders.csv") -> List[Dict[str, Any]]:
     """
-    Load products and orders, calculate popularity, and prepare for indexing.
+    Load products and orders, calculate average ratings, and prepare for indexing.
     
     Args:
         products_file: Path to products JSON
@@ -160,13 +159,13 @@ def prepare_products_for_indexing(products_file: str = "data/store/products.json
     products = load_products(products_file)
     orders = load_orders(orders_file)
     
-    # Calculate updated popularity
-    popularity_scores = calculate_popularity_scores(products, orders)
+    # Calculate average ratings
+    avg_ratings = calculate_average_ratings(products, orders)
     
     # Prepare for indexing
     indexed_products = []
     for product in products:
-        text, metadata = prepare_product_for_embedding(product, popularity_scores[product['id']])
+        text, metadata = prepare_product_for_embedding(product, avg_ratings[product['id']])
         
         indexed_products.append({
             'id': product['id'],  # Use product ID as vector ID
