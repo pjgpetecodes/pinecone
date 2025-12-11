@@ -5,7 +5,8 @@
     "segment": "fitness-enthusiast",
     "preferred_categories": ["Fitness", "Food & Beverage"],
     "preferred_regions": ["North America"],
-    "joined_at": "2023-06-15"
+    "joined_at": "2023-06-15",
+    "profile_image_url": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400"
   },
   {
     "id": "USER-002",
@@ -13,7 +14,8 @@
     "segment": "tech-professional",
     "preferred_categories": ["Electronics", "Home Office"],
     "preferred_regions": ["Asia", "North America"],
-    "joined_at": "2023-08-22"
+    "joined_at": "2023-08-22",
+    "profile_image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
   },
   {
     "id": "USER-003",
@@ -21,7 +23,8 @@
     "segment": "eco-conscious",
     "preferred_categories": ["Kitchen", "Outdoor"],
     "preferred_regions": ["Europe"],
-    "joined_at": "2023-09-10"
+    "joined_at": "2023-09-10",
+    "profile_image_url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400"
   },
   {
     "id": "USER-004",
@@ -29,7 +32,8 @@
     "segment": "wellness-seeker",
     "preferred_categories": ["Fitness", "Food & Beverage"],
     "preferred_regions": ["Asia"],
-    "joined_at": "2023-07-05"
+    "joined_at": "2023-07-05",
+    "profile_image_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400"
   },
   {
     "id": "USER-005",
@@ -37,7 +41,8 @@
     "segment": "home-chef",
     "preferred_categories": ["Kitchen", "Food & Beverage"],
     "preferred_regions": ["Europe", "North America"],
-    "joined_at": "2023-10-18"
+    "joined_at": "2023-10-18",
+    "profile_image_url": "https://images.unsplash.com/photo-1517841905240-74490c94b41c?w=400"
   },
   {
     "id": "USER-006",
@@ -45,7 +50,8 @@
     "segment": "remote-worker",
     "preferred_categories": ["Home Office", "Electronics"],
     "preferred_regions": ["North America"],
-    "joined_at": "2023-05-12"
+    "joined_at": "2023-05-12",
+    "profile_image_url": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400"
   },
   {
     "id": "USER-007",
@@ -53,7 +59,8 @@
     "segment": "outdoor-adventurer",
     "preferred_categories": ["Outdoor", "Travel", "Fitness"],
     "preferred_regions": ["Asia", "Europe"],
-    "joined_at": "2023-11-01"
+    "joined_at": "2023-11-01",
+    "profile_image_url": "https://images.unsplash.com/photo-1534751516642-a1efb6c0b1d0?w=400"
   },
   {
     "id": "USER-008",
@@ -61,7 +68,8 @@
     "segment": "gadget-lover",
     "preferred_categories": ["Electronics", "Accessories"],
     "preferred_regions": ["North America", "Asia"],
-    "joined_at": "2023-04-20"
+    "joined_at": "2023-04-20",
+    "profile_image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
   },
   {
     "id": "USER-009",
@@ -69,7 +77,8 @@
     "segment": "fitness-enthusiast",
     "preferred_categories": ["Fitness", "Outdoor"],
     "preferred_regions": ["North America", "Europe"],
-    "joined_at": "2023-12-01"
+    "joined_at": "2023-12-01",
+    "profile_image_url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400"
   },
   {
     "id": "USER-010",
@@ -77,6 +86,7 @@
     "segment": "tech-professional",
     "preferred_categories": ["Electronics", "Home Office"],
     "preferred_regions": ["Asia", "North America"],
-    "joined_at": "2023-12-05"
+    "joined_at": "2023-12-05",
+    "profile_image_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400"
   }
 ]
