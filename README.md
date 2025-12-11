@@ -254,24 +254,28 @@ python index_images.py
 ```
 
 This will:
-1. Download and cache the CLIP model locally (~350MB, one-time)
-2. Analyze each product image using CLIP (completely offline)
-3. Generate 512-dimensional image embeddings (or 768 depending on CLIP variant)
-4. Store image vectors alongside text vectors in Pinecone
-5. Enable hybrid search combining text and image modalities
+1. Download and cache the CLIP model locally (~350MB, one-time only)
+2. Download and cache each product image to `data/store/images/` (locally stored, never re-downloaded)
+3. Analyze each product image using CLIP (completely offline)
+4. Generate 512-dimensional image embeddings and pad to 1536-dim to match text vectors
+5. Store image vectors alongside text vectors in Pinecone
+6. Enable hybrid search combining text and image modalities
 
 **Why CLIP?**
 - ✅ Completely offline - no API calls to external services
 - ✅ Free and open-source (from OpenAI)
 - ✅ Understands both text and images in same embedding space
-- ✅ Fast once model is cached
+- ✅ Fast once model and images are cached
 - ✅ No authentication required
 - ✅ Same concept as Pinecone's JavaScript implementation with transformers.js
+- ✅ Local image caching ensures reliability even if external URLs become unavailable
 
-**Output:**
+**First Run (downloads CLIP model and images):**
 ```
-Initializing CLIP model for offline image embeddings...
-✓ CLIP initialized. Embedding dimension: 512
+Loading CLIP model: openai/clip-vit-base-patch32
+Using device: cuda
+CLIP model loaded. Native dimension: 512, Target dimension: 1536
+Image cache directory: data/store/images
 
 Loading products...
 Loaded 20 products
@@ -279,9 +283,10 @@ Loaded 20 products
 Generating image embeddings using CLIP (offline)...
 Processing images - this may take a few minutes on first run (downloading model cache)...
 
-  Processing PROD-001: Wireless Bluetooth Headphones...
-  Processing PROD-002: Organic Cotton Yoga Mat...
-  [... more products ...]
+  Processing 1/20: Wireless Bluetooth Headphones...
+  Processing 2/20: Organic Cotton Yoga Mat...
+  [... downloading and caching images ...]
+  Processing 20/20: Wireless Charging Pad Fast Charge...
 
 ✓ Generated embeddings for 20 product images
 ✓ Upserted batch 1 (20 image vectors)
@@ -291,9 +296,23 @@ Image indexing complete!
 ============================================================
 ✓ Total image vectors stored: 20
 ✓ Total index size: 40 vectors (text + image)
-✓ Embedding dimension: 512
+✓ CLIP native dimension: 512D (padded to 1536D)
 ✓ All processing done offline using CLIP
 ```
+
+**Subsequent Runs (loads from cache, much faster):**
+```
+[CLIP model loads from cache in seconds]
+[Images load from data/store/images/ directory, no downloads needed]
+✓ Generated embeddings for 20 product images
+✓ All processing complete in ~30 seconds
+```
+
+**Image Caching Benefits:**
+- 📁 All images stored in `data/store/images/` with names like `PROD-001.jpg`, `PROD-002.jpg`, etc.
+- ⚡ Subsequent indexing runs are 10x faster (no network downloads)
+- 🔒 Reliable - doesn't depend on external URLs remaining available
+- 🎓 Great for course demos and reproducible results
 
 ### Step 4: Run Multimodal Search
 
@@ -303,33 +322,129 @@ Search using text, images, or both:
 python query_multimodal.py
 ```
 
-**Search Options:**
+**Interactive Menu Options:**
 
 1. **Text Search** - Traditional keyword-based search
    ```
-   Query: "yoga mat for meditation"
-   Results: Organic Cotton Yoga Mat (0.876), Meditation Cushion Zafu (0.843), ...
+   Search Option: 1
+   Enter your search query: yoga mat for meditation
+   
+   Results: 
+   1. Organic Cotton Yoga Mat
+      Category: Fitness | Price: $49.99 | Rating: 4.67/5.0
+      Similarity Score: 0.876
+      
+   2. Meditation Cushion Zafu
+      Category: Accessories | Price: $89.99 | Rating: 4.0/5.0
+      Similarity Score: 0.843
    ```
 
-2. **Image Search** - Find similar products by image
+2. **Image Search** - Find similar products by image (local file or URL)
    ```
-   Image URL: https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400
-   Results: Smart Fitness Tracker Watch (0.912), Adjustable Dumbbell Set (0.856), ...
+   Search Option: 2
+   Enter image path or URL to search with: data/store/images/PROD-003.jpg
+   
+   Analyzing image and searching...
+   
+   Results:
+   1. Smart Fitness Tracker Watch
+      Category: Electronics | Price: $199.99 | Rating: 4.5/5.0
+      Similarity Score: 0.912
+      
+   2. Adjustable Dumbbell Set
+      Category: Fitness | Price: $299.99 | Rating: 4.33/5.0
+      Similarity Score: 0.856
    ```
 
-3. **Hybrid Search** - Combine text and image queries
+3. **Hybrid Search** - Combine text and image queries (60% text, 40% image)
    ```
-   Text: "wireless audio"
-   Image: https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400
-   Results: [Combined rankings by text (60%) + image (40%) similarity]
+   Search Option: 3
+   Enter text query: wireless audio equipment
+   Enter image path or URL (or press Enter to skip): data/store/images/PROD-001.jpg
+   
+   Processing hybrid search...
+   
+   Results (combined text + image):
+   1. Wireless Bluetooth Headphones
+      Category: Electronics | Price: $149.99 | Rating: 4.8/5.0
+      Combined Score: 0.923
    ```
 
 4. **Personalized Search** - Text search with user preferences
    ```
-   User: USER-001 (fitness-enthusiast)
-   Query: "strength training equipment"
-   Results: [Filtered by user's preferred categories and regions]
+   Search Option: 4
+   Enter user ID (e.g., USER-001): USER-001
+   Enter your search query: strength training equipment
+   
+   Results filtered by USER-001 (Alice, fitness-enthusiast):
+   - Preferred categories: Fitness, Food & Beverage
+   - Preferred regions: North America
+   
+   1. Adjustable Dumbbell Set
+      Category: Fitness | Price: $299.99 | Rating: 4.33/5.0
    ```
+
+**Example Workflows:**
+
+**Workflow 1: Search by local product image**
+```powershell
+python query_multimodal.py
+
+Search by Image (Option 2)
+Path: data/store/images/PROD-003.jpg
+↓
+Finds: Similar fitness products
+```
+
+**Workflow 2: Hybrid text + image search**
+```powershell
+python query_multimodal.py
+
+Hybrid Search (Option 3)
+Text: "home office setup"
+Image: data/store/images/PROD-008.jpg
+↓
+Results weighted: 60% text relevance + 40% visual similarity
+```
+
+**Workflow 3: Search any image (not just products)**
+```powershell
+python query_multimodal.py
+
+Image Search (Option 2)
+Path: C:\Users\YourName\Pictures\my-yoga-mat.jpg
+↓
+Finds: Products visually similar to your image
+```
+
+### Step 5: Understanding the Multimodal Index
+
+After running `index_images.py`, your Pinecone index contains:
+
+**Text Vectors (from product descriptions):**
+```
+ID: PROD-001
+Vector: [0.123, -0.456, 0.789, ...]  (1536 dimensions from Azure OpenAI)
+Type: Text embedding of product description
+```
+
+**Image Vectors (from product images):**
+```
+ID: PROD-001-image
+Vector: [0.456, -0.123, 0.234, ...]  (512 dims from CLIP, padded to 1536)
+Type: Image embedding from CLIP
+```
+
+**Total Index:**
+- 20 text vectors (1 per product)
+- 20 image vectors (1 per product)
+- **40 total vectors** enabling rich multimodal search
+
+**How Hybrid Ranking Works:**
+1. Search text vectors for text query → get text-based rankings
+2. Search image vectors for image input → get image-based rankings
+3. Combine scores: `combined_score = (text_score × 0.6) + (image_score × 0.4)`
+4. Return top-k by combined score
 
 ### Step 5: Run Legacy Example Queries
 
@@ -445,14 +560,23 @@ python query_products.py --examples    # Legacy pre-configured demos
 .
 ├── data/
 │   └── store/
-│       ├── products.json      # 20 product catalog
-│       ├── users.json         # 8 user profiles
-│       └── orders.csv         # 35 purchase records
-├── product_loader.py          # Data loading and preparation
-├── index_products.py          # Index creation script
-├── query_products.py          # Personalized query interface
-├── embedding_helper.py        # Azure OpenAI wrapper
-└── README.md                  # This file
+│       ├── products.json       # 20 product catalog with image_url field
+│       ├── users.json          # 10 user profiles with segments
+│       ├── orders.csv          # 59 purchase records for ratings
+│       └── images/             # Cached product images (downloaded on first run)
+│           ├── PROD-001.jpg
+│           ├── PROD-002.jpg
+│           └── ... (20 total)
+├── product_loader.py           # Data loading and preparation
+├── embedding_helper.py         # Azure OpenAI text embedding wrapper
+├── image_helper.py             # CLIP-based image embedding and caching
+├── index_products.py           # Create text vector index
+├── index_images.py             # Create image vector index with caching
+├── query_products.py           # Personalized text search interface
+├── query_multimodal.py         # Multimodal search interface (text/image/hybrid)
+├── pdf_helper.py               # PDF processing utilities
+├── pinecone_indexes.py         # Index management utilities
+└── README.md                   # This file
 ```
 
 ## How the Recommender System Works
@@ -602,50 +726,133 @@ Pinecone efficiently finds the top-5 most similar vectors **that also match all 
 ## Concepts Illustrated
 
 ### Multimodal Search (Image + Text) - Offline CLIP
-This branch extends the recommender system with multimodal capabilities using **offline CLIP**:
-- **Text search**: Query products by description, category, or features
-- **Image search**: Upload or reference an image to find similar products
-- **Hybrid search**: Combine text and image queries for richer results
-- **Offline processing**: No API calls - uses local CLIP model cached on disk
-- **Dual embeddings**: Store both text (1536-dim) and image (512-dim) vectors in Pinecone
-- **Weighted ranking**: Adjust importance between text and image matches
 
-**How it works (completely offline):**
-1. **CLIP Model**: OpenAI's CLIP (Contrastive Language-Image Pre-training) understands both text and images
-2. **Image Processing**: Download image → Process with CLIP → Generate 512-dimensional embedding
-3. **Local Execution**: Everything runs on your machine - no external API calls
-4. **Unified Space**: Text and image embeddings are semantically comparable (CLIP's superpower!)
-5. **Hybrid Queries**: Search by text, image, or both, with adjustable weighting
+This implementation extends the recommender system with **multimodal capabilities using offline CLIP**:
 
-**Advantages over cloud-based approaches:**
-- ✅ No API keys or authentication needed (except Pinecone)
+**Four Search Modes:**
+1. **Text-only search**: Query products by description, category, or features
+2. **Image-only search**: Upload or reference an image to find similar products
+3. **Hybrid search**: Combine text and image queries with adjustable weighting (default 60% text, 40% image)
+4. **Personalized search**: Text search filtered by user preferences and segments
+
+**How It Works (Completely Offline):**
+
+1. **CLIP Model**: OpenAI's CLIP (Contrastive Language-Image Pre-training) understands both text and images in a shared embedding space
+2. **Image Download & Cache**: Images are downloaded once and stored locally in `data/store/images/` for subsequent runs
+3. **Embedding Generation**: 
+   - Text: Azure OpenAI generates 1536-dimensional vectors
+   - Images: CLIP generates 512-dimensional vectors (padded to 1536-dim for Pinecone compatibility)
+4. **Unified Space**: Both text and image embeddings are semantically comparable in the same Pinecone index
+5. **Hybrid Ranking**: 
+   - Run both text and image searches
+   - Normalize scores (1st place = 1.0, 2nd = 0.8, etc.)
+   - Combine with weights: `score = (text_score × text_weight) + (image_score × (1-text_weight))`
+
+**Architecture:**
+```
+Products (20)
+    ↓
+    ├─→ Text embedding (Azure OpenAI) ──→ PROD-001 (text vector, 1536-dim)
+    │                                         ↓
+    │                                    Pinecone Index
+    │                                         ↑
+    └─→ Image download & embedding ────→ PROD-001-image (image vector, 512-dim→1536-dim)
+           (CLIP locally)
+           
+    User Query
+         ↓
+    ├─→ Text query → Search text vectors
+    │                    ↓
+    │             Rank results
+    │
+    ├─→ Image query → Search image vectors
+    │                    ↓
+    │             Rank results
+    │
+    └─→ Both → Combine rankings with weights → Final results
+```
+
+**Key Features:**
+
+✅ **Completely Offline**
+- No API calls to external services
+- CLIP model cached locally (~350MB, downloaded once)
+- Images cached locally, never re-downloaded
+- Only Pinecone communication required
+
+✅ **Zero Additional Costs**
+- CLIP is free and open-source (from OpenAI)
+- No per-image processing fees
+- Single Pinecone index (no separate image index needed)
+
+✅ **Fast Iterations**
+- First run: Download CLIP model + cache images (5-10 minutes)
+- Subsequent runs: Load from cache instantly (~30 seconds for indexing)
+
+✅ **Reliable & Reproducible**
+- Cached images in `data/store/images/` ensure consistent results
+- No dependency on external URL availability
+- Perfect for course demos and testing
+
+✅ **Flexible Input**
+- Image search accepts local file paths or URLs
+- Hybrid search combines any text query with any image
+- Personalized search applies user preferences to any query mode
+
+**Advantages over Cloud-Based Approaches:**
+- ✅ No API keys or authentication for image processing
 - ✅ No rate limiting or quota concerns
 - ✅ No streaming costs for image analysis
 - ✅ All processing stays on your machine (privacy)
-- ✅ Model cached after first download (~350MB)
-- ✅ Compatible with transformers.js (Pinecone's JavaScript approach)
+- ✅ Model cached after first download
+- ✅ Compatible with Pinecone's transformers.js approach (JavaScript)
 
-**Schema with Offline Multimodal Support:**
+**Multimodal Index Schema:**
 ```json
 Text Vector (PROD-001):
-  id: "PROD-001"
-  values: [0.123, -0.456, 0.789, ...]  // 1536 dimensions (from text embedding)
-  metadata: {
-    product_id: "PROD-001",
-    title: "Wireless Bluetooth Headphones",
-    image_url: "https://unsplash.com/...",
-    vector_type: "text"
+{
+  "id": "PROD-001",
+  "values": [0.123, -0.456, 0.789, ...],  // 1536 dims from Azure OpenAI
+  "metadata": {
+    "product_id": "PROD-001",
+    "title": "Wireless Bluetooth Headphones",
+    "category": "Electronics",
+    "image_url": "https://images.unsplash.com/...",
+    "vector_type": "text"
   }
+}
 
 Image Vector (PROD-001-image):
-  id: "PROD-001-image"
-  values: [0.234, -0.567, 0.890, ...]  // 512 dimensions (from CLIP image embedding)
-  metadata: {
-    product_id: "PROD-001",
-    title: "Wireless Bluetooth Headphones",
-    image_url: "https://unsplash.com/...",
-    vector_type: "image"
+{
+  "id": "PROD-001-image",
+  "values": [0.234, -0.567, 0.890, ...],  // 512 dims from CLIP, padded to 1536
+  "metadata": {
+    "product_id": "PROD-001",
+    "title": "Wireless Bluetooth Headphones",
+    "category": "Electronics",
+    "image_url": "https://images.unsplash.com/...",
+    "vector_type": "image"
   }
+}
+```
+
+**Example Hybrid Search Calculation:**
+```python
+# Both queries run against same Pinecone index
+text_results = index.query(text_vector, top_k=5)
+image_results = index.query(image_vector, top_k=5)
+
+# Normalize results to scores (position-based)
+# 1st = 1.0, 2nd = 0.8, 3rd = 0.6, 4th = 0.4, 5th = 0.2
+text_scores = {prod_id: 1.0 - (i/5) for i, prod_id in enumerate(text_results)}
+image_scores = {prod_id: 1.0 - (i/5) for i, prod_id in enumerate(image_results)}
+
+# Combine with default weighting (60% text, 40% image)
+for product_id in all_products:
+    combined = (text_scores.get(product_id, 0) * 0.6) + 
+               (image_scores.get(product_id, 0) * 0.4)
+    
+# Return top-5 by combined score
 ```
 
 ### Vector Search + Metadata Filtering
