@@ -113,10 +113,26 @@ class FacialSimilarityEngine:
         Returns:
             List of similar users ranked by facial similarity
         """
-        # Extract embedding from provided image
-        face_embedding = self.face_helper.get_face_embedding(image_path)
+        # Prefer cached file if URL matches a known user's profile image (for consistent preprocessing)
+        resolved_source = image_path
+        try:
+            if image_path.startswith('http'):
+                base = image_path.split('?')[0]
+                for u in users:
+                    u_url = u.get('profile_image_url', '')
+                    if u_url:
+                        u_base = u_url.split('?')[0]
+                        if base == u_base:
+                            # Use cached local file for embedding consistency
+                            resolved_source = os.path.join('data', 'store', 'user_images', f"{u['id']}.jpg")
+                            break
+        except Exception:
+            pass
+
+        # Extract embedding from resolved image source
+        face_embedding = self.face_helper.get_face_embedding(resolved_source)
         if face_embedding is None:
-            print(f"Could not extract facial embedding from {image_path}")
+            print(f"Could not extract facial embedding from {resolved_source}")
             return []
         
         # Query Pinecone
@@ -145,7 +161,7 @@ class FacialSimilarityEngine:
         return similar_users
 
 
-def display_results(results: List[Dict[str, Any]], query_type: str = "facial similarity"):
+def display_results(results: List[Dict[str, Any]], query_type: str = "facial similarity", query_context: Optional[Dict[str, Any]] = None):
     """Display similarity results in formatted table and offer HTML gallery view."""
     if not results:
         print(f"\nNo similar users found for your {query_type} query.")
@@ -170,7 +186,7 @@ def display_results(results: List[Dict[str, Any]], query_type: str = "facial sim
     except Exception:
         open_gallery = False
     if open_gallery:
-        html_path = render_results_gallery(results, query_type)
+        html_path = render_results_gallery(results, query_type, query_context)
         if html_path:
             print(f"\nOpening gallery: {html_path}")
             try:
@@ -179,36 +195,81 @@ def display_results(results: List[Dict[str, Any]], query_type: str = "facial sim
                 print("Could not automatically open browser. Please open the HTML file manually.")
 
 
-def render_results_gallery(results: List[Dict[str, Any]], query_type: str) -> Optional[str]:
-        """Generate a simple HTML gallery showing cached images with similarity scores."""
-        # Ensure reports directory exists
-        reports_dir = os.path.join('data', 'store', 'reports')
-        os.makedirs(reports_dir, exist_ok=True)
+def render_results_gallery(results: List[Dict[str, Any]], query_type: str, query_context: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Generate a simple HTML gallery showing cached images with similarity scores."""
+    # Ensure reports directory exists
+    reports_dir = os.path.join('data', 'store', 'reports')
+    os.makedirs(reports_dir, exist_ok=True)
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        html_file = os.path.join(reports_dir, f"face_similarity_{timestamp}.html")
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    html_file = os.path.join(reports_dir, f"face_similarity_{timestamp}.html")
 
-        # Build HTML content
-        rows = []
-        for r in results:
-                img_path = r.get('cached_image_path')
-                # Use local cached image if available, otherwise fall back to remote URL
-                if img_path and os.path.exists(img_path):
-                        img_src = img_path.replace('\\', '/')
+    # Derive query subject image src if provided
+    query_subject_block = ""
+    if query_context:
+        # If an explicit subject source was passed, use it exactly.
+        explicit_src = query_context.get('subject_src')
+        subject_img_src = ""
+        cached_path = query_context.get('cached_image_path')
+        profile_url = query_context.get('profile_image_url')
+        image_path = query_context.get('image_path')
+        image_url = query_context.get('image_url')
+
+        if explicit_src:
+            subject_img_src = explicit_src
+        else:
+            # Priority: explicit URL/file input -> cached path -> profile URL
+            if image_url and (image_url.startswith('http://') or image_url.startswith('https://') or image_url.startswith('file://')):
+                subject_img_src = image_url
+            elif image_path:
+                if os.path.isabs(image_path) and os.path.exists(image_path):
+                    subject_img_src = "file://" + os.path.abspath(image_path).replace('\\', '/')
+                elif os.path.exists(image_path):
+                    subject_img_src = os.path.relpath(image_path, start=reports_dir).replace('\\', '/')
                 else:
-                        img_src = r.get('profile_image_url', '')
-                rows.append(f"""
-                <div class='card'>
-                    <img src='{img_src}' alt='{r.get('name','')}'/>
-                    <div class='meta'>
-                        <div class='name'>{r.get('rank','.')} . {r.get('name','')} ({r.get('user_id','')})</div>
-                        <div class='segment'>{r.get('segment','')}</div>
-                        <div class='score'>Similarity: {r.get('similarity_score',0):.4f}</div>
-                    </div>
-                </div>
-                """)
+                    subject_img_src = image_path
+            elif cached_path and os.path.exists(cached_path):
+                subject_img_src = os.path.relpath(cached_path, start=reports_dir).replace('\\', '/')
+            elif profile_url:
+                subject_img_src = profile_url
 
-        html = f"""
+        subject_title = query_context.get('name') or query_context.get('title') or 'Selected Subject'
+        subject_id = query_context.get('user_id', '')
+        subject_segment = query_context.get('segment', '')
+        if subject_img_src:
+            query_subject_block = f"""
+            <div class='subject'>
+                <img src='{subject_img_src}' alt='{subject_title}'/>
+                <div class='meta'>
+                    <div class='name'>{subject_title} {('(' + subject_id + ')') if subject_id else ''}</div>
+                    <div class='segment'>{subject_segment}</div>
+                </div>
+            </div>
+            """
+
+    # Build HTML content
+    rows = []
+    for r in results:
+        img_path = r.get('cached_image_path')
+        # Use local cached image if available, otherwise fall back to remote URL
+        if img_path and os.path.exists(img_path):
+            # Make path relative to the report directory to avoid nested duplication
+            rel_src = os.path.relpath(img_path, start=reports_dir).replace('\\', '/')
+            img_src = rel_src
+        else:
+            img_src = r.get('profile_image_url', '')
+        rows.append(f"""
+        <div class='card'>
+            <img src='{img_src}' alt='{r.get('name','')}'/>
+            <div class='meta'>
+            <div class='name'>{r.get('rank','.')}. {r.get('name','')} ({r.get('user_id','')})</div>
+            <div class='segment'>{r.get('segment','')}</div>
+            <div class='score'>Similarity: {r.get('similarity_score',0):.4f}</div>
+            </div>
+        </div>
+        """)
+
+    html = f"""
         <!doctype html>
         <html>
             <head>
@@ -217,6 +278,11 @@ def render_results_gallery(results: List[Dict[str, Any]], query_type: str) -> Op
                 <style>
                     body {{ font-family: Arial, sans-serif; margin: 20px; }}
                     h1 {{ margin-bottom: 10px; }}
+                    .subject {{ display: flex; gap: 16px; align-items: center; border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }}
+                    .subject img {{ width: 140px; height: 140px; object-fit: cover; border-radius: 6px; }}
+                    .subject .meta {{ display: flex; flex-direction: column; }}
+                    .subject .name {{ font-weight: 700; font-size: 16px; margin-bottom: 6px; }}
+                    .subject .segment {{ color: #555; font-size: 12px; }}
                     .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }}
                     .card {{ border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }}
                     .card img {{ width: 100%; height: 220px; object-fit: cover; display: block; }}
@@ -229,6 +295,7 @@ def render_results_gallery(results: List[Dict[str, Any]], query_type: str) -> Op
             </head>
             <body>
                 <h1>Facial Similarity Results ({query_type})</h1>
+                {query_subject_block}
                 <div class='grid'>
                     {''.join(rows)}
                 </div>
@@ -237,13 +304,13 @@ def render_results_gallery(results: List[Dict[str, Any]], query_type: str) -> Op
         </html>
         """
 
-        try:
-                with open(html_file, 'w', encoding='utf-8') as f:
-                        f.write(html)
-                return html_file
-        except Exception as e:
-                print(f"Failed to write gallery: {e}")
-                return None
+    try:
+        with open(html_file, 'w', encoding='utf-8') as f:
+            f.write(html)
+        return html_file
+    except Exception as e:
+        print(f"Failed to write gallery: {e}")
+        return None
 
 
 def run_interactive_similarity():
@@ -271,7 +338,16 @@ def run_interactive_similarity():
             if user_id in user_map:
                 print(f"\nSearching for users similar to {user_map[user_id]['name']}...")
                 results = engine.query_by_user_id(user_id, top_k=5)
-                display_results(results, "facial similarity to user")
+                # Build query context for selected user card
+                query_context = {
+                    'subject_type': 'user',
+                    'user_id': user_id,
+                    'name': user_map[user_id]['name'],
+                    'segment': user_map[user_id]['segment'],
+                    'profile_image_url': user_map[user_id].get('profile_image_url', ''),
+                    'cached_image_path': os.path.join('data', 'store', 'user_images', f"{user_id}.jpg")
+                }
+                display_results(results, "facial similarity to user", query_context)
             else:
                 print(f"User {user_id} not found")
         
@@ -280,7 +356,17 @@ def run_interactive_similarity():
             if image_path:
                 print("\nAnalyzing facial features and searching...")
                 results = engine.query_by_image(image_path, top_k=5)
-                display_results(results, "facial similarity to image")
+                query_context = {
+                    'subject_type': 'image',
+                    'title': 'Selected Image',
+                    # Pass exact input through both fields; renderer will choose
+                    'image_path': image_path if not image_path.startswith(('http://','https://','file://')) else '',
+                    'image_url': image_path if image_path.startswith(('http://','https://','file://')) else '',
+                    'profile_image_url': '',
+                    # Force exact use of the provided input in the subject block
+                    'subject_src': image_path if image_path else ''
+                }
+                display_results(results, "facial similarity to image", query_context)
         
         elif choice == "3":
             print("\n" + "─"*100)

@@ -81,21 +81,40 @@ class FaceEmbeddingHelper:
         
         # Download from URL
         try:
-            response = requests.get(image_url, timeout=10)
+            response = requests.get(image_url, timeout=15)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert('RGB')
-            
+
             # Cache the image
             if user_id:
                 try:
                     image.save(cache_path, 'JPEG', quality=95)
                 except Exception as e:
                     print(f"Warning: Could not cache image to {cache_path}: {str(e)}")
-            
+
             return image
         except Exception as e:
-            print(f"Error downloading image from {image_url}: {str(e)}")
-            return None
+            # Fallback: retry without query params (Unsplash variants sometimes 404 with params)
+            base_url = image_url.split('?')[0]
+            if base_url != image_url:
+                try:
+                    response = requests.get(base_url, timeout=15)
+                    response.raise_for_status()
+                    image = Image.open(BytesIO(response.content)).convert('RGB')
+
+                    if user_id:
+                        try:
+                            image.save(cache_path, 'JPEG', quality=95)
+                        except Exception as e2:
+                            print(f"Warning: Could not cache image to {cache_path}: {str(e2)}")
+
+                    return image
+                except Exception as e2:
+                    print(f"Error downloading image from {image_url}: {str(e)} | Fallback failed: {str(e2)}")
+                    return None
+            else:
+                print(f"Error downloading image from {image_url}: {str(e)}")
+                return None
 
     def get_face_embedding(self, image_source: str, user_id: str = None) -> Optional[List[float]]:
         """
@@ -109,39 +128,46 @@ class FaceEmbeddingHelper:
             List of 128 floating point values representing the face embedding,
             or None if face extraction fails
         """
-        # Load image (local or downloaded)
+        # Determine an image path for DeepFace (prefers file paths)
+        img_path: Optional[str] = None
+
         if os.path.isfile(image_source):
-            try:
-                image = Image.open(image_source).convert('RGB')
-            except Exception as e:
-                print(f"Error loading local image {image_source}: {str(e)}")
-                return None
+            img_path = image_source
         else:
-            # Treat as URL
+            # Treat as URL and ensure it is cached to a deterministic path
+            if not user_id:
+                # If no user_id provided, derive a temporary cache name
+                user_id = "TEMP"
+            cache_filename = f"{user_id}.jpg"
+            cache_path = os.path.join(self.cache_dir, cache_filename)
+
             image = self.download_image(image_source, user_id)
             if image is None:
                 return None
-        
-        # Extract facial embedding using DeepFace
+            # Ensure the image is written to disk (download_image already tries when user_id is set)
+            try:
+                image.save(cache_path, 'JPEG', quality=95)
+            except Exception:
+                # If save fails, we cannot proceed with file-path based represent
+                print(f"Warning: Failed to persist cached image at {cache_path}")
+            img_path = cache_path
+
+        # Extract facial embedding using DeepFace with a file path
         try:
-            # Convert PIL image to numpy array
-            img_array = np.array(image)
-            
-            # Extract embedding using DeepFace
             embedding_objs = DeepFace.represent(
-                img_array=img_array,
+                img_path=img_path,
                 model_name=self.model_name,
-                enforce_detection=False  # Don't fail if face not detected perfectly
+                enforce_detection=False,
+                detector_backend='opencv'
             )
-            
+
             if embedding_objs and len(embedding_objs) > 0:
-                # Get embedding from first detected face
                 embedding = embedding_objs[0]['embedding']
                 return embedding
             else:
-                print(f"No face detected in image")
+                print("No face detected in image")
                 return None
-                
+
         except Exception as e:
             print(f"Error extracting face embedding: {str(e)}")
             return None
