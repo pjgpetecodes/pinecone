@@ -69,7 +69,7 @@
     "preferred_categories": ["Electronics", "Accessories"],
     "preferred_regions": ["North America", "Asia"],
     "joined_at": "2023-04-20",
-    "profile_image_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400"
+    "profile_image_url": "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=400"
   },
   {
     "id": "USER-009",
@@ -78,7 +78,7 @@
     "preferred_categories": ["Fitness", "Outdoor"],
     "preferred_regions": ["North America", "Europe"],
     "joined_at": "2023-12-01",
-    "profile_image_url": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400"
+    "profile_image_url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400"
   },
   {
     "id": "USER-010",
@@ -87,6 +87,6 @@
     "preferred_categories": ["Electronics", "Home Office"],
     "preferred_regions": ["Asia", "North America"],
     "joined_at": "2023-12-05",
-    "profile_image_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400"
+    "profile_image_url": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400"
   }
 ]
