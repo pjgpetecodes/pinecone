@@ -137,7 +137,8 @@ Region: {product['region']}
         'price': product['price'],
         'region': product['region'],
         'avg_rating': avg_rating,
-        'created_at': product['created_at']
+        'created_at': product['created_at'],
+        'image_url': product.get('image_url', '')  # Include image URL for multimodal search
     }
     
     return embedding_text, metadata

@@ -230,7 +230,84 @@ python query_products.py --interactive
 
 **Special feature:** Leave the query blank and provide a User ID to see recommendations based on their last purchase (pure similarity, no category filters).
 
-### Step 4: Run Legacy Example Queries
+### Step 3: Index Product Images (Multimodal Search)
+
+Generate embeddings for product images for hybrid text+image search:
+
+```powershell
+python index_images.py
+```
+
+This will:
+1. Analyze each product image using Azure OpenAI Vision
+2. Generate rich image descriptions based on visual content
+3. Create image embeddings (1536-dimensional vectors)
+4. Store image vectors alongside text vectors in Pinecone
+5. Enable hybrid search combining text and image modalities
+
+**Output:**
+```
+Loading products...
+Loaded 20 products
+
+Generating image embeddings...
+  Processing PROD-001: Wireless Bluetooth Headphones...
+  Processing PROD-002: Organic Cotton Yoga Mat...
+  [... more products ...]
+
+Generated embeddings for 20 product images
+Failed: 0
+
+Upserting 20 image vectors...
+  Upserted batch 1 (20 image vectors)
+
+Image indexing complete!
+Total image vectors stored: 20
+Total index size: 40 vectors (text + image)
+```
+
+**New Files Created:**
+- `image_helper.py` - Azure OpenAI Vision wrapper for image analysis and embeddings
+- `index_images.py` - Script to generate and index image embeddings
+- `query_multimodal.py` - Interactive multimodal search interface
+
+### Step 4: Run Multimodal Search
+
+Search using text, images, or both:
+
+```powershell
+python query_multimodal.py
+```
+
+**Search Options:**
+
+1. **Text Search** - Traditional keyword-based search
+   ```
+   Query: "yoga mat for meditation"
+   Results: Organic Cotton Yoga Mat (0.876), Meditation Cushion Zafu (0.843), ...
+   ```
+
+2. **Image Search** - Find similar products by image
+   ```
+   Image URL: https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400
+   Results: Smart Fitness Tracker Watch (0.912), Adjustable Dumbbell Set (0.856), ...
+   ```
+
+3. **Hybrid Search** - Combine text and image queries
+   ```
+   Text: "wireless audio"
+   Image: https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400
+   Results: [Combined rankings by text (60%) + image (40%) similarity]
+   ```
+
+4. **Personalized Search** - Text search with user preferences
+   ```
+   User: USER-001 (fitness-enthusiast)
+   Query: "strength training equipment"
+   Results: [Filtered by user's preferred categories and regions]
+   ```
+
+### Step 5: Run Legacy Example Queries
 
 See older pre-configured searches:
 
@@ -246,8 +323,9 @@ This runs demonstrations for:
 
 ## Key Features Demonstrated
 
-### 1. Guided Tour Mode (Default)
+### 1. Guided Tour Mode (Default - Text Search)
 Run realistic recommendation scenarios that demonstrate the full system:
+
 ```powershell
 python query_products.py  # Default: runs guided tour
 ```
@@ -498,6 +576,46 @@ results = index.query(
 Pinecone efficiently finds the top-5 most similar vectors **that also match all filters**.
 
 ## Concepts Illustrated
+
+### Multimodal Search (Image + Text)
+This branch extends the recommender system with multimodal capabilities:
+- **Text search**: Query products by description, category, or features
+- **Image search**: Upload or reference an image to find similar products
+- **Hybrid search**: Combine text and image queries for richer results
+- **Dual embeddings**: Store both text and image vectors in Pinecone
+- **Weighted ranking**: Adjust importance between text (60%) and image (40%) matches
+
+**How it works:**
+1. **Image Analysis**: Azure OpenAI Vision analyzes each product image and generates a detailed text description
+2. **Image Embeddings**: The description is embedded using the same 1536-dimensional embedding model
+3. **Dual Storage**: Each product has two vectors:
+   - Text vector from product title/description/metadata
+   - Image vector from visual content analysis
+4. **Hybrid Queries**: User can provide text, image, or both, with weighted importance for ranking
+5. **Cross-modal Discovery**: Find products using different modalities (e.g., search by image to find similar products)
+
+**Schema with Multimodal Support:**
+```json
+Text Vector (PROD-001):
+  id: "PROD-001"
+  values: [0.123, -0.456, 0.789, ...]  // 1536 dimensions from text
+  metadata: {
+    product_id: "PROD-001",
+    title: "Wireless Bluetooth Headphones",
+    image_url: "https://unsplash.com/...",
+    vector_type: "text"
+  }
+
+Image Vector (PROD-001-image):
+  id: "PROD-001-image"
+  values: [0.234, -0.567, 0.890, ...]  // 1536 dimensions from image
+  metadata: {
+    product_id: "PROD-001",
+    title: "Wireless Bluetooth Headphones",
+    image_url: "https://unsplash.com/...",
+    vector_type: "image"
+  }
+```
 
 ### Vector Search + Metadata Filtering
 Pinecone allows combining semantic search with structured filters:
