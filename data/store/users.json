@@ -1,0 +1,66 @@
+[
+  {
+    "id": "USER-001",
+    "name": "Alice Johnson",
+    "segment": "fitness-enthusiast",
+    "preferred_categories": ["Fitness", "Food & Beverage"],
+    "preferred_regions": ["North America"],
+    "joined_at": "2023-06-15"
+  },
+  {
+    "id": "USER-002",
+    "name": "Bob Chen",
+    "segment": "tech-professional",
+    "preferred_categories": ["Electronics", "Home Office"],
+    "preferred_regions": ["Asia", "North America"],
+    "joined_at": "2023-08-22"
+  },
+  {
+    "id": "USER-003",
+    "name": "Carol Martinez",
+    "segment": "eco-conscious",
+    "preferred_categories": ["Kitchen", "Outdoor"],
+    "preferred_regions": ["Europe"],
+    "joined_at": "2023-09-10"
+  },
+  {
+    "id": "USER-004",
+    "name": "David Kim",
+    "segment": "wellness-seeker",
+    "preferred_categories": ["Fitness", "Food & Beverage"],
+    "preferred_regions": ["Asia"],
+    "joined_at": "2023-07-05"
+  },
+  {
+    "id": "USER-005",
+    "name": "Emma Wilson",
+    "segment": "home-chef",
+    "preferred_categories": ["Kitchen", "Food & Beverage"],
+    "preferred_regions": ["Europe", "North America"],
+    "joined_at": "2023-10-18"
+  },
+  {
+    "id": "USER-006",
+    "name": "Frank Anderson",
+    "segment": "remote-worker",
+    "preferred_categories": ["Home Office", "Electronics"],
+    "preferred_regions": ["North America"],
+    "joined_at": "2023-05-12"
+  },
+  {
+    "id": "USER-007",
+    "name": "Grace Lee",
+    "segment": "outdoor-adventurer",
+    "preferred_categories": ["Outdoor", "Travel", "Fitness"],
+    "preferred_regions": ["Asia", "Europe"],
+    "joined_at": "2023-11-01"
+  },
+  {
+    "id": "USER-008",
+    "name": "Henry Brown",
+    "segment": "gadget-lover",
+    "preferred_categories": ["Electronics", "Accessories"],
+    "preferred_regions": ["North America", "Asia"],
+    "joined_at": "2023-04-20"
+  }
+]

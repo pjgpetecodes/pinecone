@@ -1,0 +1,222 @@
+[
+  {
+    "id": "PROD-001",
+    "title": "Wireless Bluetooth Headphones",
+    "description": "Premium noise-canceling wireless headphones with 30-hour battery life. Features advanced active noise cancellation, comfortable over-ear design, and studio-quality sound. Perfect for travel, work, or leisure.",
+    "category": "Electronics",
+    "tags": ["audio", "wireless", "noise-canceling", "bluetooth"],
+    "price": 199.99,
+    "region": "North America",
+    "popularity": 8.5,
+    "created_at": "2024-01-15"
+  },
+  {
+    "id": "PROD-002",
+    "title": "Organic Cotton Yoga Mat",
+    "description": "Eco-friendly yoga mat made from 100% organic cotton. Non-slip surface, extra cushioning for joint protection. Biodegradable and sustainable. Includes carrying strap.",
+    "category": "Fitness",
+    "tags": ["yoga", "organic", "eco-friendly", "exercise"],
+    "price": 49.99,
+    "region": "North America",
+    "popularity": 7.2,
+    "created_at": "2024-02-10"
+  },
+  {
+    "id": "PROD-003",
+    "title": "Stainless Steel Water Bottle",
+    "description": "Insulated stainless steel water bottle keeps drinks cold for 24 hours or hot for 12 hours. BPA-free, leak-proof design. Available in multiple colors. 32oz capacity.",
+    "category": "Outdoor",
+    "tags": ["hydration", "insulated", "eco-friendly", "reusable"],
+    "price": 34.99,
+    "region": "Europe",
+    "popularity": 9.1,
+    "created_at": "2024-01-20"
+  },
+  {
+    "id": "PROD-004",
+    "title": "Smart Fitness Tracker Watch",
+    "description": "Advanced fitness tracker with heart rate monitoring, sleep tracking, and GPS. Water-resistant design with 7-day battery life. Tracks steps, calories, and multiple workout modes.",
+    "category": "Electronics",
+    "tags": ["fitness", "smart-watch", "health", "tracking"],
+    "price": 129.99,
+    "region": "Asia",
+    "popularity": 8.8,
+    "created_at": "2024-03-05"
+  },
+  {
+    "id": "PROD-005",
+    "title": "Organic Green Tea Collection",
+    "description": "Premium organic green tea sampler with 5 unique flavors. Sourced from sustainable farms. Rich in antioxidants. Each box contains 50 tea bags.",
+    "category": "Food & Beverage",
+    "tags": ["tea", "organic", "healthy", "antioxidants"],
+    "price": 24.99,
+    "region": "Asia",
+    "popularity": 6.8,
+    "created_at": "2024-02-25"
+  },
+  {
+    "id": "PROD-006",
+    "title": "Laptop Stand Ergonomic Adjustable",
+    "description": "Aluminum laptop stand with 6 adjustable height settings. Improves posture and reduces neck strain. Compatible with all laptop sizes. Includes cable management.",
+    "category": "Home Office",
+    "tags": ["ergonomic", "laptop", "adjustable", "workspace"],
+    "price": 44.99,
+    "region": "North America",
+    "popularity": 7.9,
+    "created_at": "2024-01-30"
+  },
+  {
+    "id": "PROD-007",
+    "title": "Natural Bamboo Cutting Board Set",
+    "description": "Set of 3 bamboo cutting boards in different sizes. Antimicrobial properties, knife-friendly surface. Eco-friendly and renewable material. Easy to clean and maintain.",
+    "category": "Kitchen",
+    "tags": ["bamboo", "eco-friendly", "kitchen", "cooking"],
+    "price": 39.99,
+    "region": "Europe",
+    "popularity": 7.5,
+    "created_at": "2024-02-15"
+  },
+  {
+    "id": "PROD-008",
+    "title": "LED Desk Lamp with USB Charging",
+    "description": "Modern LED desk lamp with adjustable brightness and color temperature. Built-in USB charging port. Energy-efficient and eye-friendly lighting. Touch controls.",
+    "category": "Home Office",
+    "tags": ["lighting", "LED", "desk", "USB-charging"],
+    "price": 54.99,
+    "region": "North America",
+    "popularity": 8.3,
+    "created_at": "2024-03-10"
+  },
+  {
+    "id": "PROD-009",
+    "title": "Resistance Bands Exercise Set",
+    "description": "Complete resistance bands set with 5 different resistance levels. Includes door anchor, handles, and ankle straps. Perfect for home workouts and physical therapy.",
+    "category": "Fitness",
+    "tags": ["resistance", "exercise", "home-workout", "strength"],
+    "price": 29.99,
+    "region": "Europe",
+    "popularity": 8.0,
+    "created_at": "2024-01-25"
+  },
+  {
+    "id": "PROD-010",
+    "title": "Portable Bluetooth Speaker",
+    "description": "Waterproof portable speaker with 360-degree sound. 12-hour battery life, built-in microphone for calls. Compact design perfect for outdoor adventures.",
+    "category": "Electronics",
+    "tags": ["audio", "bluetooth", "waterproof", "portable"],
+    "price": 79.99,
+    "region": "Asia",
+    "popularity": 8.7,
+    "created_at": "2024-02-20"
+  },
+  {
+    "id": "PROD-011",
+    "title": "Organic Protein Powder Vanilla",
+    "description": "Plant-based organic protein powder with 25g protein per serving. No artificial sweeteners, GMO-free. Great for smoothies and post-workout recovery.",
+    "category": "Food & Beverage",
+    "tags": ["protein", "organic", "plant-based", "nutrition"],
+    "price": 44.99,
+    "region": "North America",
+    "popularity": 7.6,
+    "created_at": "2024-03-01"
+  },
+  {
+    "id": "PROD-012",
+    "title": "Memory Foam Neck Pillow",
+    "description": "Ergonomic memory foam travel pillow with adjustable strap. Provides superior neck support for travel or home use. Removable washable cover.",
+    "category": "Travel",
+    "tags": ["travel", "pillow", "comfort", "memory-foam"],
+    "price": 27.99,
+    "region": "Europe",
+    "popularity": 7.1,
+    "created_at": "2024-01-18"
+  },
+  {
+    "id": "PROD-013",
+    "title": "Minimalist Leather Wallet",
+    "description": "Slim genuine leather wallet with RFID blocking technology. Holds up to 12 cards and cash. Handcrafted with premium materials. Available in black and brown.",
+    "category": "Accessories",
+    "tags": ["leather", "wallet", "RFID", "minimalist"],
+    "price": 39.99,
+    "region": "North America",
+    "popularity": 8.4,
+    "created_at": "2024-02-05"
+  },
+  {
+    "id": "PROD-014",
+    "title": "Ceramic Non-Stick Cookware Set",
+    "description": "5-piece ceramic non-stick cookware set. PFOA-free, even heat distribution. Oven-safe up to 450°F. Includes frying pans and saucepan with glass lids.",
+    "category": "Kitchen",
+    "tags": ["cookware", "ceramic", "non-stick", "cooking"],
+    "price": 89.99,
+    "region": "Asia",
+    "popularity": 7.8,
+    "created_at": "2024-03-12"
+  },
+  {
+    "id": "PROD-015",
+    "title": "Reusable Silicone Food Storage Bags",
+    "description": "Set of 6 reusable silicone food storage bags in various sizes. Freezer, microwave, and dishwasher safe. Eco-friendly alternative to plastic bags.",
+    "category": "Kitchen",
+    "tags": ["silicone", "reusable", "eco-friendly", "storage"],
+    "price": 22.99,
+    "region": "Europe",
+    "popularity": 6.9,
+    "created_at": "2024-02-28"
+  },
+  {
+    "id": "PROD-016",
+    "title": "USB-C Hub Multi-Port Adapter",
+    "description": "7-in-1 USB-C hub with HDMI, USB 3.0 ports, SD card reader, and power delivery. Compatible with laptops and tablets. Aluminum construction.",
+    "category": "Electronics",
+    "tags": ["USB-C", "adapter", "hub", "connectivity"],
+    "price": 49.99,
+    "region": "North America",
+    "popularity": 8.6,
+    "created_at": "2024-01-22"
+  },
+  {
+    "id": "PROD-017",
+    "title": "Meditation Cushion Zafu",
+    "description": "Traditional meditation cushion filled with organic buckwheat hulls. Supports proper posture during meditation. Removable washable cover. Height adjustable.",
+    "category": "Fitness",
+    "tags": ["meditation", "cushion", "yoga", "mindfulness"],
+    "price": 36.99,
+    "region": "Asia",
+    "popularity": 6.5,
+    "created_at": "2024-02-08"
+  },
+  {
+    "id": "PROD-018",
+    "title": "Adjustable Dumbbell Set",
+    "description": "Space-saving adjustable dumbbells that replace 15 sets. Quick-change weight selection from 5 to 52.5 lbs per dumbbell. Perfect for home gym.",
+    "category": "Fitness",
+    "tags": ["dumbbells", "weights", "home-gym", "strength"],
+    "price": 299.99,
+    "region": "North America",
+    "popularity": 9.3,
+    "created_at": "2024-03-15"
+  },
+  {
+    "id": "PROD-019",
+    "title": "Organic Coffee Beans Medium Roast",
+    "description": "Fair trade organic coffee beans from South America. Medium roast with notes of chocolate and caramel. Freshly roasted and sealed for maximum flavor.",
+    "category": "Food & Beverage",
+    "tags": ["coffee", "organic", "fair-trade", "beans"],
+    "price": 16.99,
+    "region": "Europe",
+    "popularity": 7.7,
+    "created_at": "2024-01-28"
+  },
+  {
+    "id": "PROD-020",
+    "title": "Wireless Charging Pad Fast Charge",
+    "description": "Qi-certified wireless charging pad with fast charge technology. Compatible with all Qi-enabled devices. LED indicator, non-slip surface. Includes adapter.",
+    "category": "Electronics",
+    "tags": ["wireless", "charging", "Qi", "fast-charge"],
+    "price": 29.99,
+    "region": "Asia",
+    "popularity": 8.2,
+    "created_at": "2024-02-18"
+  }
+]

@@ -1,6 +1,15 @@
-# Pinecone Vector Search with Azure OpenAI Embeddings
+# Pinecone Recommender Systems - Personalized Product Search
 
-A Python application that demonstrates vector search using Pinecone Local and Azure OpenAI embeddings. This project extracts text from PDF files, generates embeddings, and enables semantic search capabilities.
+A Python application demonstrating personalized product recommendations using Pinecone vector search with metadata filtering. This branch showcases how to build recommender systems that combine semantic search with user preferences and purchase history.
+
+## What This Branch Demonstrates
+
+This implementation shows:
+- **Metadata-driven filtering**: Filter products by category, region, price range
+- **User personalization**: Recommendations based on user preferences and segments
+- **Popularity boosting**: Surface trending items alongside relevant matches
+- **Purchase history awareness**: Highlight previously purchased items
+- **Rich product metadata**: Categories, tags, regions, pricing, popularity scores
 
 ## Prerequisites
 
@@ -32,7 +41,7 @@ python -m venv .venv
 ### 3. Install Dependencies
 
 ```powershell
-pip install pinecone python-dotenv openai pypdf
+pip install pinecone python-dotenv openai
 ```
 
 ### 4. Configure Environment Variables
@@ -76,224 +85,271 @@ docker ps --filter name=pinecone-local --format "table {{.Names}}\t{{.Ports}}"
 
 You should see: `0.0.0.0:5081-5082->5081-5082/tcp`
 
-## Running the Application
+## Store Data Overview
 
-### Step 1: Extract PDF and Create Index
+This demo includes a fake store with:
 
-Run the indexing script:
+### Products (20 items)
+- **Categories**: Electronics, Fitness, Kitchen, Home Office, Food & Beverage, Outdoor, Travel, Accessories
+- **Regions**: North America, Europe, Asia
+- **Metadata**: Price, popularity scores, tags, creation dates
+- Located in: `data/store/products.json`
+
+### Users (8 profiles)
+- **Segments**: fitness-enthusiast, tech-professional, eco-conscious, wellness-seeker, home-chef, remote-worker, outdoor-adventurer, gadget-lover
+- **Preferences**: Preferred categories and regions per user
+- Located in: `data/store/users.json`
+
+### Orders (35 transactions)
+- User purchase history with ratings
+- Used to calculate dynamic popularity scores
+- Located in: `data/store/orders.csv`
+
+## Running the Recommender System
+
+### Step 1: Index Products
+
+Create the vector index with product embeddings:
 
 ```powershell
-python pinecone_indexes.py
+python index_products.py
 ```
 
 This will:
-1. Extract paragraphs from the PDF
-2. Generate embeddings using Azure OpenAI
-3. Create a Pinecone index
-4. Upsert all vectors with metadata
+1. Load products from `data/store/products.json`
+2. Load orders to calculate popularity scores
+3. Generate embeddings for product descriptions
+4. Create a Pinecone index with rich metadata
+5. Upsert all product vectors
 
 **Output:**
 ```
-Extracted 150 paragraphs from XYZ-2021-Annual_Report.pdf
-Company: XYZ, Year: 2021
+Loading products from store data...
+Loaded 20 products
 
-Generating embeddings...
-Generated 150 embeddings
+Generating embeddings for products...
+Generated 20 embeddings
 
-Upserted batch 1 (100 vectors)
-Upserted batch 2 (50 vectors)
+Upserted batch 1 (20 vectors)
 
-Total vectors upserted: 150
+Total product vectors upserted: 20
 
-Indexes:
-  - example-index
+Index Statistics:
+  Total vectors: 20
+  Dimension: 1536
+
+Product index ready for recommender queries!
 ```
 
-### Step 2: Query the Index
+### Step 2: Query with Personalization
 
-Run the query interface:
+Run the interactive query interface:
 
 ```powershell
-python query_index.py
+python query_products.py
 ```
 
-This opens an interactive prompt where you can search:
+**Available Users:**
+- `USER-001`: Alice (fitness-enthusiast) - prefers Fitness, Food & Beverage
+- `USER-002`: Bob (tech-professional) - prefers Electronics, Home Office
+- `USER-003`: Carol (eco-conscious) - prefers Kitchen, Outdoor
+- `USER-004`: David (wellness-seeker) - prefers Fitness, Food & Beverage
+- `USER-005`: Emma (home-chef) - prefers Kitchen, Food & Beverage
+- `USER-006`: Frank (remote-worker) - prefers Home Office, Electronics
+- `USER-007`: Grace (outdoor-adventurer) - prefers Outdoor, Travel, Fitness
+- `USER-008`: Henry (gadget-lover) - prefers Electronics, Accessories
 
+**Example Session:**
 ```
-Pinecone Query Interface
-==================================================
-Index: example-index
-Top K Results: 5
-==================================================
+🔍 Enter search query: workout equipment
+👤 Enter User ID: USER-001
+📁 Filter by category: (press Enter)
+🌍 Filter by region: (press Enter)
 
-Enter your query (or 'quit' to exit): What are the company's financial results?
-```
+🔍 Personalizing results for: Alice Johnson (fitness-enthusiast)
+   Preferred categories: Fitness, Food & Beverage
+   Preferred regions: North America
+   Previous purchases: 4 orders
 
-**Results display:**
-- All 5 matching results with similarity scores (0-1)
-- Full metadata: title, company, year, location, file name
-- Complete content text
-- **Best Match Summary** showing the highest-scoring result
+🎯 Applied filters: {'category': {'$in': ['Fitness', 'Food & Beverage']}, 'region': {'$in': ['North America']}}
 
-Example output:
-```
-Found 5 results:
+🛍️  TOP RECOMMENDATIONS (5 results)
 
---- Result 1 (Score: 0.8234) ---
-Title: Page 3 - Paragraph 1
-Company: XYZ
-Year: 2021
-Location: Finance
-File: XYZ-2021-Annual_Report.pdf
-Content:
-[Full paragraph text...]
+1. Adjustable Dumbbell Set
+   Category: Fitness | Region: North America
+   Price: $299.99 | Popularity: 9.3/10.0
+   Score: 0.8976
+   ✅ Previously purchased
+   Tags: dumbbells, weights, home-gym, strength
 
-=== Best Match Summary ===
-Title: Page 3 - Paragraph 1
-Score: 0.8234
-Company: XYZ
-...
-```
+2. Organic Protein Powder Vanilla
+   Category: Food & Beverage | Region: North America
+   Price: $44.99 | Popularity: 7.6/10.0
+   Score: 0.8543
+   ✅ Previously purchased
+   Tags: protein, organic, plant-based, nutrition
 
-Type `quit` to exit.
-
-## Project Structure
-
-```
-pinecone1/
-├── .venv/                          # Virtual environment
-├── .env                            # Environment variables (add to .gitignore)
-├── .gitignore
-├── README.md
-├── pinecone_indexes.py             # Main indexing script
-├── query_index.py                  # Query interface
-├── pdf_helper.py                   # PDF extraction utilities
-├── embedding_helper.py             # Azure OpenAI embedding utilities
-├── XYZ-2021-Annual_Report.pdf      # Sample PDF file
-└── __pycache__/
+3. Resistance Bands Exercise Set
+   Category: Fitness | Region: North America (via Europe fallback)
+   Price: $29.99 | Popularity: 8.0/10.0
+   Score: 0.8321
+   Tags: resistance, exercise, home-workout, strength
 ```
 
-## File Descriptions
+### Step 3: Run Example Queries
 
-### `pinecone_indexes.py`
-- Extracts paragraphs from PDF files
-- Generates embeddings for each paragraph
-- Creates/recreates the Pinecone index
-- Upserts vectors with metadata (company, year, location, etc.)
+See pre-configured personalized searches:
 
-### `query_index.py`
-- Interactive query interface
-- Converts user queries to embeddings
-- Searches Pinecone index
-- Displays results with similarity scores
+```powershell
+python query_products.py --examples
+```
 
-### `pdf_helper.py`
-- Extracts text from PDF files
-- Chunks text into paragraphs
-- Handles filename parsing for metadata
-- Manages large content (>7000 characters)
+This runs demonstrations for:
+- Tech professional searching for audio gear
+- Fitness enthusiast looking for workout equipment
+- Eco-conscious shopper finding sustainable kitchen items
+- Remote worker setting up home office
 
-### `embedding_helper.py`
-- Initializes Azure OpenAI client
-- Generates single embeddings
-- Batches embeddings for efficiency
+## Key Features Demonstrated
+
+### 1. Metadata Filtering
+Filter products by multiple attributes simultaneously:
+```python
+# Category + Region filtering
+metadata_filter = {
+    'category': {'$in': ['Electronics', 'Home Office']},
+    'region': {'$in': ['North America', 'Asia']}
+}
+```
+
+### 2. User Personalization
+Automatically apply user preferences:
+```python
+user_context = get_user_context("USER-002")  # Bob - tech professional
+# Filters applied: categories=[Electronics, Home Office], regions=[Asia, North America]
+```
+
+### 3. Popularity Boosting
+Combine semantic similarity with popularity scores:
+```python
+popularity_factor = 1 + (popularity / 20)  # 1.0 to 1.5x boost
+boosted_score = similarity_score * popularity_factor
+```
+
+### 4. Price Range Filtering
+Add price constraints to queries:
+```python
+filters['price'] = {'$gte': 20.0, '$lte': 100.0}
+```
+
+## Architecture Overview
+
+```
+┌─────────────────┐
+│  products.json  │──┐
+│  users.json     │  │
+│  orders.csv     │  │
+└─────────────────┘  │
+                     ▼
+              ┌──────────────┐
+              │ product_loader│
+              │  - Load data  │
+              │  - Calculate  │
+              │    popularity │
+              └──────┬────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │   Embedding   │◄──── Azure OpenAI
+              │    Helper     │      text-embedding-ada-002
+              └──────┬────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │   Pinecone   │
+              │Product Index │
+              │  + Metadata  │
+              └──────┬────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │query_products│
+              │ - User prefs │
+              │ - Filters    │
+              │ - Boost      │
+              └──────────────┘
+```
+
+## File Structure
+
+```
+.
+├── data/
+│   └── store/
+│       ├── products.json      # 20 product catalog
+│       ├── users.json         # 8 user profiles
+│       └── orders.csv         # 35 purchase records
+├── product_loader.py          # Data loading and preparation
+├── index_products.py          # Index creation script
+├── query_products.py          # Personalized query interface
+├── embedding_helper.py        # Azure OpenAI wrapper
+└── README.md                  # This file
+```
+
+## Concepts Illustrated
+
+### Vector Search + Metadata Filtering
+Pinecone allows combining semantic search with structured filters:
+- Vector similarity finds semantically related products
+- Metadata filters constrain results to user preferences
+- Results satisfy both meaning AND constraints
+
+### Personalization Strategies
+1. **Preference-based**: Filter by user's favorite categories/regions
+2. **History-aware**: Highlight previously purchased items
+3. **Collaborative signals**: Use order counts to boost popular items
+4. **Hybrid scoring**: Blend vector similarity with popularity
+
+### Metadata Schema Design
+Product vectors include:
+- **Searchable fields**: product_id, title, category, tags
+- **Filterable fields**: category, region, price range
+- **Ranking signals**: popularity score (derived from orders)
+- **Display data**: price, creation date, full metadata
 
 ## Troubleshooting
 
-### Docker Container Won't Start
-
-**Error:** `Ports are not available`
-
-**Solution:** Stop conflicting containers:
+### Container Not Running
 ```powershell
-docker ps  # Find the container using ports 5081-5082
-docker stop <container-id>
-docker rm -f pinecone-local
+docker ps -a
+docker start pinecone-local
 ```
 
-Then restart with the commands above.
+### Index Not Found
+Re-run `index_products.py` to create the product index.
 
-### Connection Refused on Port 5082
+### No Results
+Check filters - too many constraints may exclude all products. Try:
+- Removing user_id to search without personalization
+- Skipping category/region filters
+- Widening price range
 
-**Error:** `failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:5082`
+### Connection Errors
+Ensure `.env` has correct Azure OpenAI credentials and the Pinecone container is running on ports 5081-5082.
 
-**Solution:** Ensure both ports are exposed:
-```powershell
-docker rm -f pinecone-local
-docker run -d --name pinecone-local `
-  -e PORT=5081 -e PINECONE_HOST=localhost `
-  -p 5081:5081 -p 5082:5082 `
-  --platform linux/amd64 `
-  ghcr.io/pinecone-io/pinecone-local:latest
-```
+## Learning Resources
 
-### Azure OpenAI Authentication Error
+This branch demonstrates concepts from the Pluralsight course:
+- **Learning Objective**: Develop recommender systems using Pinecone metadata filtering and vector similarity to surface personalized results
+- **Key Skills**: Metadata schema design, user preference modeling, hybrid ranking, popularity boosting
 
-**Error:** `AuthenticationError` or `Invalid API key`
+Explore other branches:
+- `main` - Basic RAG with PDF documents
+- `3-multimodal-search` - Image + text hybrid search
+- `4-anomaly-detection` - Log analysis with vector outliers
+- `5-index-design` - Schema best practices
+- `6-performance-evaluation` - Metrics and optimization
 
-**Solution:**
-1. Verify `.env` file has correct values
-2. Check Azure Portal for correct instance name and API version
-3. Ensure deployment names match your Azure configuration
+---
 
-### No Results Found
-
-**Possible causes:**
-- Index is empty (run `pinecone_indexes.py` first)
-- PDF file not found
-- Query is too different from document content
-
-**Solution:** Test with a specific phrase from your PDF.
-
-## Configuration Options
-
-### Modify Top K Results
-
-In `query_index.py`:
-```python
-top_k = 10  # Change from 5 to 10
-```
-
-### Adjust Batch Size
-
-In `pinecone_indexes.py`:
-```python
-batch_size = 50  # Change from 100 for slower connections
-```
-
-### Change Index Dimensions
-
-Update in `pinecone_indexes.py`:
-```python
-model_dimensions = 1536  # Must match your embedding model
-```
-
-## Performance Tips
-
-1. **Batch Processing:** The application processes embeddings in batches for efficiency
-2. **Delay Between Batches:** 1-second delay prevents overwhelming local Pinecone
-3. **Top K Results:** Limit results to what you need (higher K = slower queries)
-4. **PDF Size:** Test with smaller PDFs first before processing large documents
-
-## Next Steps
-
-- Integrate with a web application (Flask/FastAPI)
-- Add filtering by metadata (company, year, location)
-- Implement reranking for better results
-- Add authentication and user sessions
-- Deploy Pinecone to production (Azure/AWS)
-
-## Additional Resources
-
-- [Pinecone Documentation](https://docs.pinecone.io)
-- [Pinecone Local Setup](https://docs.pinecone.io/guides/projects/pinecone-local)
-- [Azure OpenAI Embeddings](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings)
-- [Vector Search Concepts](https://docs.pinecone.io/learn/vector-search)
-
-## Support
-
-For issues or questions:
-1. Check the Troubleshooting section
-2. Review Docker logs: `docker logs pinecone-local`
-3. Verify `.env` configuration
-4. Check Azure OpenAI credentials
+**Next Steps**: Experiment with different user profiles, add new products, or modify the popularity calculation to see how recommendations change!
