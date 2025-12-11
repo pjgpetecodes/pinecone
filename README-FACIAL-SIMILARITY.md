@@ -7,6 +7,7 @@ This branch demonstrates **facial similarity measurement** using:
 - **Offline facial embeddings** using DeepFace (no API calls, no costs)
 - **Pinecone vector similarity search** to rank users by facial distance
 - **Cosine similarity** for comparing high-dimensional face vectors
+- **Image normalization** (256×256) for consistent preprocessing
 - **Educational context** - Learning vector embedding fundamentals
 
 ## Important: Educational Purpose
@@ -128,12 +129,16 @@ Interactive menu with 4 options:
 2. **Find similar users by image**
    ```
    Choice: 2
-   Image path: data/store/user_images/USER-001.jpg
+   Image path: https://images.unsplash.com/photo-...?w=400
+   
+   Generating embedding with normalized image preprocessing (256×256)...
    
    Results:
    1. Carol Martinez (USER-003) - Similarity: 0.8432
    2. Grace Lee (USER-007) - Similarity: 0.8156
    ```
+   
+   **Note**: Images are automatically normalized to 256×256 before embedding to match preprocessing used during indexing.
 
 3. **View all users**
    - Lists all 10 users with their segments and preferences
@@ -146,16 +151,21 @@ Interactive menu with 4 options:
 - Located in: `data/store/users.json`
 - Each user has: `id`, `name`, `segment`, `profile_image_url`
 - Profile images: Cached locally in `data/store/user_images/`
+- All cached images normalized to 256×256 for consistency
 
 ### Facial Embeddings
 - **Model**: Facenet (from DeepFace library)
 - **Dimension**: 128-dimensional vectors
 - **Storage**: Pinecone `user-faces-index`
 - **Similarity Metric**: Cosine similarity (0-1 scale)
+- **Preprocessing**: All images normalized to 256×256 (aspect-preserving center-crop) before embedding
 
 ## How It Works
 
-### Step 1: Image Download & Caching
+### Step 1: Image Normalization & Download
+- Images downloaded from URLs or loaded from local paths
+- All images resized to 256×256 with aspect-preserving center-crop
+- Cached locally for consistency
 ```
 Profile URL → Download → Cache locally → Reuse on future runs
 ```

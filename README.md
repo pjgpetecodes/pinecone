@@ -45,6 +45,12 @@ Built on top of the `3-multimodal-search` branch, this implementation focuses on
 - Privacy-preserving (all processing on your machine)
 - Model cached locally (~350MB, downloaded once)
 
+**Image Normalization & Consistency**:
+- ✅ Automatic image resizing to 256×256 (aspect-preserving center-crop)
+- ✅ Consistent preprocessing for both indexing and querying
+- ✅ Improved embedding consistency across different image sizes and sources
+- ✅ URL fallback to cached files when available for maximum consistency
+
 ## Prerequisites
 
 - Docker Desktop installed (for Pinecone Local)
@@ -199,6 +205,12 @@ DeepFace analyzes facial features:
 - Conversion to 128-dimensional vector representation
 - Facenet model (99%+ accuracy on facial recognition benchmarks)
 
+**Preprocessing Pipeline:**
+- All images normalized to 256×256 (aspect-preserving center-crop)
+- Applied during indexing and querying for consistency
+- Ensures face detection alignment is identical across different image sizes
+- Improves embedding consistency and match accuracy
+
 ### 2. Vector Storage (Pinecone)
 
 ```python
@@ -234,6 +246,7 @@ Pinecone uses cosine similarity:
 - Measures angle between 128-dim vectors
 - Scale: 0 (completely different) to 1 (identical)
 - Returns ranked list of most similar faces
+- Queries use same 256×256 preprocessing as indexed embeddings
 
 ### 4. Interactive Querying
 
@@ -241,6 +254,7 @@ Search by user ID or upload your own image for comparison:
 
 ```powershell
 python query_user_similarity.py
+````
 
 # Option 1: Search by existing user
 Enter User ID: USER-001
