@@ -106,6 +106,9 @@ class FacialSimilarityEngine:
         """
         Find users with facial features similar to a provided image.
         
+        Images are automatically normalized to 256×256 (aspect-preserving center-crop)
+        to match the preprocessing used during indexing, ensuring consistent embeddings.
+        
         Args:
             image_path: Local file path or URL to the image
             top_k: Number of similar users to return
@@ -125,11 +128,13 @@ class FacialSimilarityEngine:
                         if base == u_base:
                             # Use cached local file for embedding consistency
                             resolved_source = os.path.join('data', 'store', 'user_images', f"{u['id']}.jpg")
+                            print(f"Resolved URL to cached file for consistent embedding: {resolved_source}")
                             break
         except Exception:
             pass
 
-        # Extract embedding from resolved image source
+        # Extract embedding from resolved image source (normalizes to 256×256 before embedding)
+        print(f"Generating embedding with normalized image preprocessing (256×256)...")
         face_embedding = self.face_helper.get_face_embedding(resolved_source)
         if face_embedding is None:
             print(f"Could not extract facial embedding from {resolved_source}")
