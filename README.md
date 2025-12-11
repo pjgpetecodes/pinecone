@@ -1,22 +1,37 @@
-# Pinecone Recommender Systems - Personalized Product Search
+# Pinecone Vector Search - Multimodal Product Search
 
-A Python application demonstrating personalized product recommendations using Pinecone vector search with metadata filtering. This branch showcases how to build recommender systems that combine semantic search with user preferences and purchase history.
+**Branch**: `3-multimodal-search`  
+**Objective**: Implement hybrid search combining image embeddings and text descriptions for multimodal retrieval
 
-## What This Branch Demonstrates
+This branch demonstrates **multimodal search** capabilities by combining:
+- **Text-based search** using Azure OpenAI embeddings
+- **Image-based search** using offline CLIP embeddings
+- **Hybrid search** combining text and image queries with weighted scoring
 
-This implementation shows:
-- **Metadata-driven filtering**: Filter products by category, region, price range
-- **User personalization**: Recommendations based on user preferences and segments
-- **Popularity boosting**: Surface trending items alongside relevant matches
-- **Purchase history awareness**: Highlight previously purchased items
-- **Rich product metadata**: Categories, tags, regions, pricing, popularity scores
+Built on top of the `2-recommender-systems` branch, this implementation adds image analysis and multimodal ranking while preserving all personalization features.
+
+## What This Branch Adds
+
+**Multimodal Capabilities:**
+- ✅ Search products by image (local file path or URL)
+- ✅ Hybrid text + image search with adjustable weighting (default 60% text, 40% image)
+- ✅ Offline image processing using CLIP (no API calls, no costs)
+- ✅ Local image caching for reliability and performance
+- ✅ Unified Pinecone index with dual embeddings (text + image vectors)
+
+**Key Innovation**: Uses **offline CLIP** for completely local image analysis:
+- No Azure OpenAI Vision API needed
+- No per-image processing costs
+- No rate limiting concerns
+- Privacy-preserving (all processing on your machine)
+- Model cached locally (~350MB, downloaded once)
 
 ## Prerequisites
 
 - Docker Desktop installed
 - Python 3.8 or higher
-- Azure OpenAI account with an embedding model deployed
-- A PDF file to process
+- Azure OpenAI account with embedding model deployed
+- (Image search only - no additional image API required)
 
 ## Setup Instructions
 
@@ -100,150 +115,146 @@ docker ps --filter name=pinecone-local --format "table {{.Names}}\t{{.Ports}}"
 
 You should see: `0.0.0.0:5081-5082->5081-5082/tcp`
 
-## Store Data Overview
+## Quick Start - Multimodal Search Demo
 
-This demo includes a fake store with:
-
-### Products (20 items)
-- **Categories**: Electronics, Fitness, Kitchen, Home Office, Food & Beverage, Outdoor, Travel, Accessories
-- **Regions**: North America, Europe, Asia
-- **Metadata**: Price, popularity scores, tags, creation dates
-- Located in: `data/store/products.json`
-
-### Users (10 profiles)
-- **Segments**: fitness-enthusiast, tech-professional, eco-conscious, wellness-seeker, home-chef, remote-worker, outdoor-adventurer, gadget-lover
-- **Preferences**: Preferred categories and regions per user
-- **Overlap users**: USER-009 and USER-010 added to demonstrate segment-based "also popular" patterns
-- Located in: `data/store/users.json`
-
-### Orders (59 transactions)
-- User purchase history with customer ratings (1-5 stars)
-- Used to calculate average product ratings
-- Varied ratings create realistic differentiation (some products 4.5+, others 2-3 stars)
-- Located in: `data/store/orders.csv`
-
-## Running the Recommender System
-
-### Step 1: Index Products
-
-Create the vector index with product embeddings:
+### Step 1: Index Products (Text Embeddings)
 
 ```powershell
 python index_products.py
 ```
 
-This will:
-1. Load products from `data/store/products.json`
-2. Load orders to calculate popularity scores
-3. Generate embeddings for product descriptions
-4. Create a Pinecone index with rich metadata
-5. Upsert all product vectors
+Creates vectors for all 20 products using Azure OpenAI embeddings.
 
-**Output:**
-```
-Loading products from store data...
-Loaded 20 products
-
-Generating embeddings for products...
-Generated 20 embeddings
-
-Upserted batch 1 (20 vectors)
-
-Total product vectors upserted: 20
-
-Index Statistics:
-  Total vectors: 20
-  Dimension: 1536
-
-Product index ready for recommender queries!
-```
-
-### Step 2: Run the Guided Tour (Default)
-
-Experience four real-world recommendation scenarios:
+### Step 2: Index Images (Offline CLIP Embeddings)
 
 ```powershell
-python query_products.py
+python index_images.py
 ```
 
-This runs the **guided tour** by default, demonstrating:
+Downloads and caches product images, generates image embeddings locally using CLIP.
 
-1. **Just purchased → You might also like**
-   - User just bought something; suggest related items without re-showing the purchase
-   - Uses: USER-002 (tech-professional), last purchase mode
-
-2. **Welcome back → Because you bought before**
-   - Logged-in user with history; use preferences and purchases to suggest next picks
-   - Uses: USER-005 (home-chef), query: "kitchen essentials"
-
-3. **Active search → Closest match + related**
-   - User searches for something specific; combine similarity, preferences & ratings
-   - Uses: USER-010 (tech-professional), query: "wireless headphones"
-
-4. **Also popular in your crowd**
-   - Show segment overlap where fitness enthusiasts discover shared popular purchases
-   - Uses: USER-009 (fitness-enthusiast), query: "fitness gear"
-
-After the tour completes, it automatically switches to interactive mode for free exploration.
-
-### Step 3: Interactive Mode
-
-Skip the tour and go straight to manual queries:
+### Step 3: Run Multimodal Search
 
 ```powershell
-python query_products.py --interactive
+python query_multimodal.py
 ```
 
-**Available Users:**
-- `USER-001`: Alice (fitness-enthusiast) - prefers Fitness, Food & Beverage
-- `USER-002`: Bob (tech-professional) - prefers Electronics, Home Office
-- `USER-003`: Carol (eco-conscious) - prefers Kitchen, Outdoor
-- `USER-004`: David (wellness-seeker) - prefers Fitness, Food & Beverage
-- `USER-005`: Emma (home-chef) - prefers Kitchen, Food & Beverage
-- `USER-006`: Frank (remote-worker) - prefers Home Office, Electronics
-- `USER-007`: Grace (outdoor-adventurer) - prefers Outdoor, Travel, Fitness
-- `USER-008`: Henry (gadget-lover) - prefers Electronics, Accessories
-- `USER-009`: Isabella (fitness-enthusiast) - prefers Fitness, Outdoor
-- `USER-010`: Jason (tech-professional) - prefers Electronics, Home Office
+Interactive search interface with 4 options:
+1. **Text search** - Query by product description
+2. **Image search** - Upload image or provide local path to find similar products
+3. **Hybrid search** - Combine text and image (60% text, 40% image by default)
+4. **Personalized search** - Text search filtered by user preferences
 
-**Example Session:**
+**Example Searches:**
+
 ```
-🔍 Enter search query (or press Enter to skip and use last purchase): workout equipment
-👤 Enter User ID for personalization: USER-001
-📁 Filter by category (or press Enter to skip): 
-🌍 Filter by region (or press Enter to skip): 
+Option 1: Text search
+Query: "yoga mat for meditation"
+Results: Organic Cotton Yoga Mat, Meditation Cushion Zafu, ...
 
-🔍 Personalizing results for: Alice Johnson (fitness-enthusiast)
-   Preferred categories: Fitness, Food & Beverage
-   Preferred regions: North America
-   Previous purchases: 4 orders
+Option 2: Image search (local file)
+Path: data/store/images/PROD-003.jpg
+Results: Smart Fitness Tracker Watch, Adjustable Dumbbell Set, ...
 
-🎯 Applied filters: {'category': {'$in': ['Fitness', 'Food & Beverage']}, 'region': {'$in': ['North America']}}
+Option 3: Hybrid (text + image)
+Text: "wireless audio"
+Image: data/store/images/PROD-001.jpg
+Results: [Combined rankings by 60% text + 40% image similarity]
 
-🛍️  TOP RECOMMENDATIONS (5 results)
-
-1. Adjustable Dumbbell Set
-   Category: Fitness | Region: North America
-   Price: $299.99 | Avg Rating: 4.33/5.0
-   Score: 0.8976
-   ✅ Previously purchased
-   Tags: dumbbells, weights, home-gym, strength
-
-2. Organic Protein Powder Vanilla
-   Category: Food & Beverage | Region: North America
-   Price: $44.99 | Avg Rating: 3.0/5.0
-   Score: 0.8543
-   Tags: protein, organic, plant-based, nutrition
-
-3. Resistance Bands Exercise Set
-   Category: Fitness | Region: Europe
-   Price: $29.99 | Avg Rating: 4.0/5.0
-   Score: 0.8321
-   ✅ Previously purchased
-   Tags: resistance, exercise, home-workout, strength
+Option 4: Personalized
+User: USER-001 (fitness-enthusiast)
+Query: "strength training"
+Results: [Filtered by user preferences: Fitness, Food & Beverage]
 ```
 
-**Special feature:** Leave the query blank and provide a User ID to see recommendations based on their last purchase (pure similarity, no category filters).
+## Data Overview
+
+### Products (20 items with images)
+- **Categories**: Electronics, Fitness, Kitchen, Home Office, Food & Beverage, Outdoor, Travel, Accessories
+- **Regions**: North America, Europe, Asia
+- **Image URLs**: Unsplash stock photos (cached locally in `data/store/images/`)
+- Located in: `data/store/products.json`
+
+### Users (10 profiles)
+- **Segments**: fitness-enthusiast, tech-professional, eco-conscious, wellness-seeker, home-chef, remote-worker, outdoor-adventurer, gadget-lover
+- **Preferences**: Preferred categories and regions per user
+- Located in: `data/store/users.json`
+
+### Orders (59 transactions)
+- User purchase history with ratings (1-5 stars)
+- Used for average product ratings and personalization
+- Located in: `data/store/orders.csv`
+
+## Detailed Workflow
+
+### Index Products + Images
+
+**Prerequisite**: Both `index_products.py` and `index_images.py` must have been run to populate Pinecone.
+
+```powershell
+# Step 1: Text embeddings
+python index_products.py
+# Output: 20 text vectors (1536-dim) indexed
+
+# Step 2: Image embeddings (first run downloads CLIP, subsequent runs use cache)
+python index_images.py
+# Output: 20 image vectors (512-dim padded to 1536-dim) indexed
+# Result: 40 total vectors in Pinecone (20 text + 20 image)
+```
+
+### Search Products - Text Only
+
+```powershell
+python query_multimodal.py
+
+Search Options:
+1. Text search
+2. Image search
+3. Hybrid search (text + image)
+4. Personalized text search (by user)
+5. Exit
+
+Enter your choice (1-5): 1
+Enter your search query: yoga mat
+```
+
+Results show products ranked by text similarity.
+
+### Search Products - Image Only
+
+```powershell
+python query_multimodal.py
+
+Enter your choice (1-5): 2
+Enter image path or URL to search with: data/store/images/PROD-003.jpg
+```
+
+Results show products ranked by visual similarity to the image.
+
+### Search Products - Hybrid (Text + Image)
+
+```powershell
+python query_multimodal.py
+
+Enter your choice (1-5): 3
+Enter text query: fitness equipment
+Enter image path or URL (or press Enter to skip): data/store/images/PROD-005.jpg
+```
+
+Results combine text and image similarity:
+- `combined_score = (text_score × 0.6) + (image_score × 0.4)`
+
+### Search Products - Personalized
+
+```powershell
+python query_multimodal.py
+
+Enter your choice (1-5): 4
+Enter user ID (e.g., USER-001): USER-001
+Enter your search query: strength training
+```
+
+Results filtered by USER-001's preferences (Fitness, Food & Beverage categories).
 
 ### Step 3: Index Product Images (Multimodal Search - Offline CLIP)
 
@@ -886,30 +897,136 @@ docker start pinecone-local
 ```
 
 ### Index Not Found
-Re-run `index_products.py` to create the product index.
+Re-run `index_products.py` and `index_images.py` to create the indexes.
 
-### No Results
-Check filters - too many constraints may exclude all products. Try:
-- Removing user_id to search without personalization
-- Skipping category/region filters
-- Widening price range
+### Image Download Errors
+Images are cached locally in `data/store/images/`. If a URL fails to download:
+- The image won't be indexed that run
+- Re-run `index_images.py` to retry failed images
+- Cached images will load instantly on retry
 
 ### Connection Errors
-Ensure `.env` has correct Azure OpenAI credentials and the Pinecone container is running on ports 5081-5082.
+Ensure:
+- `.env` has correct Azure OpenAI credentials
+- Pinecone container running: `docker ps | grep pinecone-local`
+- Ports 5081-5082 are available
 
-## Learning Resources
+### No Image Search Results
+- Ensure `python index_images.py` has completed successfully (20/20 images)
+- Check that `data/store/images/` directory contains cached images
+- Verify multimodal index has 40 vectors (20 text + 20 image): Check Pinecone stats
 
-This branch demonstrates concepts from the Pluralsight course:
-- **Learning Objective**: Develop recommender systems using Pinecone metadata filtering and vector similarity to surface personalized results
-- **Key Skills**: Metadata schema design, user preference modeling, hybrid ranking, popularity boosting
+## Understanding This Implementation
 
-Explore other branches:
-- `main` - Basic RAG with PDF documents
-- `3-multimodal-search` - Image + text hybrid search
-- `4-anomaly-detection` - Log analysis with vector outliers
-- `5-index-design` - Schema best practices
-- `6-performance-evaluation` - Metrics and optimization
+### Why Offline CLIP for Images?
+
+| Aspect | Offline CLIP | Azure OpenAI Vision |
+|--------|-------------|-------------------|
+| **Cost** | Free | $0.01-0.03 per image |
+| **Speed** | Fast (cached model) | API latency |
+| **Rate Limits** | None | 500 req/min |
+| **Privacy** | Local processing | Data sent to Azure |
+| **Authentication** | None needed | API key required |
+| **Reliability** | Always available | Depends on service |
+
+**This branch chose offline CLIP** because:
+- ✅ No additional API costs beyond Pinecone
+- ✅ Ideal for course demos (no quota limits)
+- ✅ All data stays on your machine
+- ✅ Fast once model is cached
+- ✅ Perfect for reproducible examples
+
+### Multimodal Index Structure
+
+After both indexing steps, your Pinecone index contains:
+
+```
+Text Vectors (from Azure OpenAI)
+├── PROD-001: [0.123, -0.456, ..., 0.789]  (1536 dims)
+├── PROD-002: [0.234, -0.567, ..., 0.890]  (1536 dims)
+└── ... (20 total)
+
+Image Vectors (from CLIP)
+├── PROD-001-image: [0.456, -0.123, ..., 0.234]  (1536 dims, padded from 512)
+├── PROD-002-image: [0.567, -0.234, ..., 0.345]  (1536 dims, padded from 512)
+└── ... (20 total)
+
+Total: 40 vectors enabling text, image, and hybrid search
+```
+
+### How Hybrid Ranking Works
+
+```
+User Query: (text: "wireless headphones", image: PROD-001.jpg)
+    ↓
+1. Search text vectors with text query
+   └→ Get top-5 products by text similarity
+   
+2. Search image vectors with image query
+   └→ Get top-5 products by image similarity
+   
+3. Normalize scores (1st=1.0, 2nd=0.8, ..., 5th=0.2)
+   
+4. Combine with weights (default 60% text, 40% image)
+   └→ combined_score = (text_score × 0.6) + (image_score × 0.4)
+   
+5. Return top-5 by combined score
+```
+
+## Related Branches
+
+This repository has multiple branches demonstrating different vector search capabilities:
+
+| Branch | Objective | Key Features |
+|--------|-----------|--------------|
+| `main` | Basic RAG | PDF document search with vector similarity |
+| `2-recommender-systems` | Personalized recommendations | Metadata filtering, user preferences, purchase history (foundation for this branch) |
+| **`3-multimodal-search`** | **Hybrid image + text search** | **Offline CLIP, image caching, dual embeddings, weighted hybrid ranking** |
+| `4-anomaly-detection` | Vector outlier detection | Log analysis, anomaly scoring |
+| `5-index-design` | Schema best practices | Metadata optimization, filtering strategies |
+| `6-performance-evaluation` | Metrics & optimization | Search quality, latency benchmarks |
+
+**This branch (`3-multimodal-search`)** builds on `2-recommender-systems` by adding multimodal capabilities while preserving all personalization features.
+
+## Learning Objectives
+
+This branch demonstrates:
+1. **Multimodal embeddings**: Combining text and image vectors in one index
+2. **Offline image processing**: Using CLIP for local, cost-free image analysis
+3. **Hybrid ranking**: Combining multiple similarity scores with weighted fusion
+4. **Local caching**: Improving reliability and performance with file-based caching
+5. **Unified search**: Text, image, and hybrid queries on the same product catalog
+
+## Next Steps
+
+**Try these workflows:**
+
+1. **Image-only discovery**
+   ```powershell
+   python query_multimodal.py
+   # Option 2: Search by PROD-003.jpg
+   # Find fitness products similar to yoga mat image
+   ```
+
+2. **Hybrid text + image**
+   ```powershell
+   python query_multimodal.py
+   # Option 3: Text "strength training" + Image PROD-005.jpg
+   # Combine text relevance with visual similarity
+   ```
+
+3. **Personalized multimodal search**
+   ```powershell
+   python query_multimodal.py
+   # Option 4: USER-001 + Text "yoga"
+   # Find yoga products matching Alice's preferences
+   ```
+
+4. **Add new products**
+   - Add to `data/store/products.json`
+   - Re-run `index_products.py` and `index_images.py`
+   - New products immediately searchable in multimodal mode
 
 ---
 
-**Next Steps**: Experiment with different user profiles, add new products, or modify the popularity calculation to see how recommendations change!
+**Questions?** See the detailed "Concepts Illustrated" section above for deeper dives into multimodal ranking, CLIP architecture, and Pinecone metadata filtering.
