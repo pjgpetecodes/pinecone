@@ -9,6 +9,8 @@ Educational context: Teaching how embeddings enable similarity measurement.
 
 import os
 import json
+import webbrowser
+from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pinecone import Pinecone
 from dotenv import load_dotenv
@@ -95,6 +97,9 @@ class FacialSimilarityEngine:
             if len(similar_users) >= top_k:
                 break
         
+        # Attach local cached image path hints
+        for item in similar_users:
+            item['cached_image_path'] = os.path.join('data', 'store', 'user_images', f"{item['user_id']}.jpg")
         return similar_users
     
     def query_by_image(self, image_path: str, top_k: int = 5) -> List[Dict[str, Any]]:
@@ -134,11 +139,14 @@ class FacialSimilarityEngine:
                 'rank': i + 1
             })
         
+        # Attach local cached image path hints
+        for item in similar_users:
+            item['cached_image_path'] = os.path.join('data', 'store', 'user_images', f"{item['user_id']}.jpg")
         return similar_users
 
 
 def display_results(results: List[Dict[str, Any]], query_type: str = "facial similarity"):
-    """Display similarity results in formatted table."""
+    """Display similarity results in formatted table and offer HTML gallery view."""
     if not results:
         print(f"\nNo similar users found for your {query_type} query.")
         return
@@ -153,6 +161,89 @@ def display_results(results: List[Dict[str, Any]], query_type: str = "facial sim
         print(f"   Facial Similarity Score: {result['similarity_score']:.4f}")
         if result['profile_image_url']:
             print(f"   Profile: {result['profile_image_url']}")
+        if result.get('cached_image_path') and os.path.exists(result['cached_image_path']):
+            print(f"   Cached Image: {result['cached_image_path']}")
+
+    # Offer to open an HTML gallery of the results
+    try:
+        open_gallery = input("\nOpen image gallery in browser? (y/N): ").strip().lower() == 'y'
+    except Exception:
+        open_gallery = False
+    if open_gallery:
+        html_path = render_results_gallery(results, query_type)
+        if html_path:
+            print(f"\nOpening gallery: {html_path}")
+            try:
+                webbrowser.open(f"file://{os.path.abspath(html_path)}")
+            except Exception:
+                print("Could not automatically open browser. Please open the HTML file manually.")
+
+
+def render_results_gallery(results: List[Dict[str, Any]], query_type: str) -> Optional[str]:
+        """Generate a simple HTML gallery showing cached images with similarity scores."""
+        # Ensure reports directory exists
+        reports_dir = os.path.join('data', 'store', 'reports')
+        os.makedirs(reports_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        html_file = os.path.join(reports_dir, f"face_similarity_{timestamp}.html")
+
+        # Build HTML content
+        rows = []
+        for r in results:
+                img_path = r.get('cached_image_path')
+                # Use local cached image if available, otherwise fall back to remote URL
+                if img_path and os.path.exists(img_path):
+                        img_src = img_path.replace('\\', '/')
+                else:
+                        img_src = r.get('profile_image_url', '')
+                rows.append(f"""
+                <div class='card'>
+                    <img src='{img_src}' alt='{r.get('name','')}'/>
+                    <div class='meta'>
+                        <div class='name'>{r.get('rank','.')} . {r.get('name','')} ({r.get('user_id','')})</div>
+                        <div class='segment'>{r.get('segment','')}</div>
+                        <div class='score'>Similarity: {r.get('similarity_score',0):.4f}</div>
+                    </div>
+                </div>
+                """)
+
+        html = f"""
+        <!doctype html>
+        <html>
+            <head>
+                <meta charset='utf-8'>
+                <title>Facial Similarity Results</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    h1 {{ margin-bottom: 10px; }}
+                    .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }}
+                    .card {{ border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }}
+                    .card img {{ width: 100%; height: 220px; object-fit: cover; display: block; }}
+                    .meta {{ padding: 10px; }}
+                    .name {{ font-weight: 600; margin-bottom: 6px; }}
+                    .segment {{ color: #555; font-size: 12px; margin-bottom: 4px; }}
+                    .score {{ color: #0a7; font-size: 13px; font-weight: 600; }}
+                    .note {{ margin-top: 16px; color: #666; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <h1>Facial Similarity Results ({query_type})</h1>
+                <div class='grid'>
+                    {''.join(rows)}
+                </div>
+                <div class='note'>Images use cached local files when available (data/store/user_images/), otherwise remote URLs.</div>
+            </body>
+        </html>
+        """
+
+        try:
+                with open(html_file, 'w', encoding='utf-8') as f:
+                        f.write(html)
+                return html_file
+        except Exception as e:
+                print(f"Failed to write gallery: {e}")
+                return None
 
 
 def run_interactive_similarity():
