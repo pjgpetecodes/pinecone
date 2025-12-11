@@ -25,6 +25,16 @@ def load_products(file_path: str = "data/store/products.json") -> List[Dict[str,
     return products
 
 
+def get_product_by_id(products: List[Dict[str, Any]], product_id: str) -> Dict[str, Any] | None:
+    """
+    Find a product by ID from a loaded product list.
+    """
+    for product in products:
+        if product.get('id') == product_id:
+            return product
+    return None
+
+
 def load_users(file_path: str = "data/store/users.json") -> Dict[str, Dict[str, Any]]:
     """
     Load users from JSON file.
@@ -183,6 +193,7 @@ def get_user_context(user_id: str,
     """
     users = load_users(users_file)
     orders = load_orders(orders_file)
+    products = load_products()
     
     if user_id not in users:
         return None
@@ -192,6 +203,22 @@ def get_user_context(user_id: str,
     # Get user's orders
     user_orders = [o for o in orders if o['user_id'] == user_id]
     purchased_product_ids = [o['product_id'] for o in user_orders]
+
+    # Identify most recent order if available
+    last_order = None
+    if user_orders:
+        latest = max(user_orders, key=lambda o: o['timestamp'])
+        last_product = get_product_by_id(products, latest['product_id'])
+        if last_product:
+            last_order = {
+                'order_id': latest['order_id'],
+                'product_id': latest['product_id'],
+                'title': last_product['title'],
+                'category': last_product['category'],
+                'region': last_product['region'],
+                'tags': last_product.get('tags', []),
+                'description': last_product.get('description', '')
+            }
     
     return {
         'user_id': user_id,
@@ -200,7 +227,8 @@ def get_user_context(user_id: str,
         'preferred_categories': user['preferred_categories'],
         'preferred_regions': user['preferred_regions'],
         'purchased_products': purchased_product_ids,
-        'order_count': len(user_orders)
+        'order_count': len(user_orders),
+        'last_order': last_order
     }
 
 

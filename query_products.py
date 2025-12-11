@@ -4,6 +4,7 @@ Demonstrates metadata filtering and personalized recommendations.
 """
 
 import os
+from typing import Optional
 from pinecone import Pinecone
 from dotenv import load_dotenv
 from embedding_helper import EmbeddingHelper
@@ -65,7 +66,7 @@ def build_metadata_filter(user_context: dict = None,
     return filters if filters else None
 
 
-def query_products(query_text: str, 
+def query_products(query_text: Optional[str], 
                   user_id: str = None,
                   category: str = None,
                   region: str = None,
@@ -98,6 +99,27 @@ def query_products(query_text: str,
             print(f"   Preferred categories: {', '.join(user_context['preferred_categories'])}")
             print(f"   Preferred regions: {', '.join(user_context['preferred_regions'])}")
             print(f"   Previous purchases: {user_context['order_count']} orders")
+
+    # If no query provided, seed from last purchase (if available)
+    query_seeded_from_last_order = False
+    last_product_id = None
+    if not query_text:
+        if user_context and user_context.get('last_order'):
+            last = user_context['last_order']
+            last_product_id = last['product_id']
+            query_text = (
+                f"Product: {last['title']}\n"
+                f"Description: {last['description']}\n"
+                f"Category: {last['category']}\n"
+                f"Tags: {', '.join(last.get('tags', []))}\n"
+                f"Region: {last['region']}"
+            )
+            query_seeded_from_last_order = True
+            popularity_boost = False  # No boosting per request
+            print(f"\n🆕 Recommendations based on last purchase: {last['title']} ({last['product_id']})")
+        else:
+            print("\nNo query provided and no orders found for this user. Please enter a query or choose a user with purchase history.")
+            return []
     
     # Build metadata filter
     metadata_filter = build_metadata_filter(
@@ -126,6 +148,10 @@ def query_products(query_text: str,
         include_metadata=True,
         filter=metadata_filter
     )
+
+    # Remove the exact last purchased product from recommendations
+    if last_product_id and results.matches:
+        results.matches = [m for m in results.matches if m.metadata.get('product_id') != last_product_id]
     
     # Apply popularity boost if enabled
     if popularity_boost and results.matches:
@@ -200,14 +226,16 @@ def run_interactive_query():
         if query.lower() in ['quit', 'exit', 'q']:
             print("\nThank you for using the Product Recommender!")
             break
-        
-        if not query:
-            continue
-        
-        # Ask for user ID for personalization
+
+        # Ask for user ID for personalization (needed for no-query mode)
         user_id = input("👤 Enter User ID for personalization (or press Enter to skip): ").strip().upper()
         if user_id and not user_id.startswith("USER-"):
             user_id = None
+        
+        # If no query and no user, prompt again
+        if not query and not user_id:
+            print("Please provide a query or a user ID with purchase history.")
+            continue
         
         # Optional filters
         category = input("📁 Filter by category (or press Enter to skip): ").strip()
@@ -224,7 +252,7 @@ def run_interactive_query():
                 category=category,
                 region=region,
                 top_k=5,
-                popularity_boost=True
+                popularity_boost=bool(query)  # disable boost when using last-order seeding
             )
             
             # Get user context for display
