@@ -11,9 +11,10 @@ class ImageHelper:
     """
     Helper class to generate embeddings for images using CLIP (offline).
     Uses local CLIP model for completely offline image processing.
+    Automatically caches downloaded images locally for reliability.
     """
 
-    def __init__(self, model_name: str = "openai/clip-vit-base-patch32", target_dim: int = 1536):
+    def __init__(self, model_name: str = "openai/clip-vit-base-patch32", target_dim: int = 1536, cache_dir: str = "data/store/images"):
         """
         Initialize CLIP model for offline image embeddings.
         
@@ -23,6 +24,7 @@ class ImageHelper:
                        Alternative: openai/clip-vit-large-patch14 (produces 768-dim embeddings)
             target_dim: Target dimension for embeddings (default 1536 to match Azure OpenAI)
                        CLIP embeddings will be padded with zeros to match this dimension
+            cache_dir: Directory to cache downloaded images locally
         """
         print(f"Loading CLIP model: {model_name}")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -32,39 +34,80 @@ class ImageHelper:
         self.processor = CLIPProcessor.from_pretrained(model_name)
         self.clip_dim = self.model.config.projection_dim
         self.target_dim = target_dim
+        self.cache_dir = cache_dir
+        
+        # Create cache directory if it doesn't exist
+        os.makedirs(self.cache_dir, exist_ok=True)
+        
         print(f"CLIP model loaded. Native dimension: {self.clip_dim}, Target dimension: {self.target_dim}")
+        print(f"Image cache directory: {self.cache_dir}")
 
-    def download_image(self, image_url: str) -> Optional[Image.Image]:
+    def load_image(self, image_source: str, product_id: str = None) -> Optional[Image.Image]:
         """
-        Download an image from a URL and return as PIL Image.
+        Load an image from either a local file path or URL.
+        Caches downloaded images locally for future use.
         
         Args:
-            image_url: URL of the image to download
+            image_source: Local file path or URL of the image
+            product_id: Product ID for naming cached file (e.g., "PROD-001")
             
         Returns:
-            PIL Image object or None if download fails
+            PIL Image object or None if loading fails
         """
+        # Check if it's a local file path
+        if os.path.isfile(image_source):
+            try:
+                image = Image.open(image_source).convert('RGB')
+                return image
+            except Exception as e:
+                print(f"Error loading local image {image_source}: {str(e)}")
+                return None
+        
+        # Otherwise treat as URL - check cache first
+        if product_id:
+            cache_filename = f"{product_id}.jpg"
+            cache_path = os.path.join(self.cache_dir, cache_filename)
+            
+            # Check if image is already cached
+            if os.path.exists(cache_path):
+                try:
+                    image = Image.open(cache_path).convert('RGB')
+                    return image
+                except Exception as e:
+                    print(f"Error loading cached image {cache_path}: {str(e)}")
+                    # Continue to download if cached file is corrupted
+        
+        # Download image from URL
         try:
-            response = requests.get(image_url, timeout=10)
+            response = requests.get(image_source, timeout=10)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert('RGB')
+            
+            # Save to cache if product_id provided
+            if product_id:
+                try:
+                    image.save(cache_path, 'JPEG', quality=95)
+                except Exception as e:
+                    print(f"Warning: Could not cache image to {cache_path}: {str(e)}")
+            
             return image
         except Exception as e:
-            print(f"Error downloading image from {image_url}: {str(e)}")
+            print(f"Error downloading image from {image_source}: {str(e)}")
             return None
 
-    def get_image_embedding(self, image_url: str) -> Optional[List[float]]:
+    def get_image_embedding(self, image_source: str, product_id: str = None) -> Optional[List[float]]:
         """
         Generate an embedding for an image using CLIP (offline).
         
         Args:
-            image_url: URL of the image
+            image_source: Local file path or URL of the image
+            product_id: Product ID for caching the image locally
             
         Returns:
-            List representing the embedding vector (512 or 768 dims), or None if fails
+            List representing the embedding vector (padded to target_dim), or None if fails
         """
-        # Download image
-        image = self.download_image(image_url)
+        # Load image (from local file, cache, or download from URL)
+        image = self.load_image(image_source, product_id)
         if image is None:
             return None
         
@@ -88,15 +131,16 @@ class ImageHelper:
             return embedding
         
         except Exception as e:
-            print(f"Error generating embedding for image {image_url}: {str(e)}")
+            print(f"Error generating embedding for image {image_source}: {str(e)}")
             return None
 
     def get_image_embeddings_batch(self, products: List[dict]) -> List[Optional[List[float]]]:
         """
         Generate embeddings for multiple product images in batch.
+        Downloads and caches images locally for reliability.
         
         Args:
-            products: List of dicts with 'image_url' key
+            products: List of dicts with 'image_url' and 'id' keys
             
         Returns:
             List of embedding vectors (same length as input, None for failed items)
@@ -105,10 +149,11 @@ class ImageHelper:
         
         for i, product in enumerate(products, 1):
             image_url = product.get("image_url")
+            product_id = product.get("id")
             
             if image_url:
                 print(f"  Processing {i}/{len(products)}: {product.get('title', 'Unknown')}...")
-                embedding = self.get_image_embedding(image_url)
+                embedding = self.get_image_embedding(image_url, product_id)
                 embeddings.append(embedding)
             else:
                 embeddings.append(None)

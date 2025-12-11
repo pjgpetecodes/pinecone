@@ -76,13 +76,13 @@ class MultimodalSearchEngine:
         # Format results
         return self._format_search_results(results)
     
-    def query_by_image(self, image_url: str, top_k: int = 5,
+    def query_by_image(self, image_source: str, top_k: int = 5,
                       filter_dict: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """
         Search using image query.
         
         Args:
-            image_url: URL of image to search with
+            image_source: Local file path or URL of image to search with
             top_k: Number of results to return
             filter_dict: Optional Pinecone filter metadata
             
@@ -90,7 +90,7 @@ class MultimodalSearchEngine:
             List of matching products
         """
         # Generate image embedding
-        image_embedding = self.image_helper.get_image_embedding(image_url)
+        image_embedding = self.image_helper.get_image_embedding(image_source)
         
         if image_embedding is None:
             print("Error: Could not generate embedding for image")
@@ -111,7 +111,7 @@ class MultimodalSearchEngine:
         # Format results
         return self._format_search_results(results)
     
-    def query_hybrid(self, text_query: str, image_url: Optional[str] = None,
+    def query_hybrid(self, text_query: str, image_source: Optional[str] = None,
                     text_weight: float = 0.6, top_k: int = 5,
                     filter_dict: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """
@@ -142,9 +142,9 @@ class MultimodalSearchEngine:
             results_dict[product_id]['_scores']['text'] = text_score
         
         # Image search if provided
-        if image_url:
+        if image_source:
             image_weight = 1.0 - text_weight
-            image_results = self.query_by_image(image_url, top_k=top_k, filter_dict=filter_dict)
+            image_results = self.query_by_image(image_source, top_k=top_k, filter_dict=filter_dict)
             
             for i, result in enumerate(image_results):
                 product_id = result['id']
@@ -160,9 +160,9 @@ class MultimodalSearchEngine:
         for product_id in results_dict:
             scores = results_dict[product_id].get('_scores', {})
             text_score = scores.get('text', 0)
-            image_score = scores.get('image', 0) if image_url else 0
+            image_score = scores.get('image', 0) if image_source else 0
             
-            if image_url:
+            if image_source:
                 combined_score = (text_score * text_weight) + (image_score * (1 - text_weight))
             else:
                 combined_score = text_score
@@ -262,21 +262,21 @@ def run_interactive_multimodal():
                 display_results(results, "text search")
         
         elif choice == "2":
-            image_url = input("Enter image URL to search with: ").strip()
-            if image_url:
+            image_source = input("Enter image path or URL to search with: ").strip()
+            if image_source:
                 print("\nAnalyzing image and searching...")
-                results = engine.query_by_image(image_url)
+                results = engine.query_by_image(image_source)
                 display_results(results, "image search")
         
         elif choice == "3":
             text_query = input("Enter text query: ").strip()
-            image_url = input("Enter image URL (or press Enter to skip): ").strip()
+            image_source = input("Enter image path or URL (or press Enter to skip): ").strip()
             
             if text_query:
                 print("\nProcessing hybrid search...")
                 results = engine.query_hybrid(
                     text_query=text_query,
-                    image_url=image_url if image_url else None,
+                    image_source=image_source if image_source else None,
                     text_weight=0.6
                 )
                 display_results(results, "hybrid search")

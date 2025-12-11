@@ -81,7 +81,7 @@
     "region": "Europe",
     "popularity": 7.5,
     "created_at": "2024-02-15",
-    "image_url": "https://images.unsplash.com/photo-1615486511262-c52a3e7fe851?w=400"
+    "image_url": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=400"
   },
   {
     "id": "PROD-008",
@@ -177,7 +177,7 @@
     "region": "Europe",
     "popularity": 6.9,
     "created_at": "2024-02-28",
-    "image_url": "https://images.unsplash.com/photo-1601972599748-f047c8f6a5b6?w=400"
+    "image_url": "https://images.unsplash.com/photo-1585659722983-3a675dabf23d?w=400"
   },
   {
     "id": "PROD-016",
@@ -237,6 +237,6 @@
     "region": "Asia",
     "popularity": 8.2,
     "created_at": "2024-03-20",
-    "image_url": "https://images.unsplash.com/photo-1591290619762-d1b304d39913?w=400"
+    "image_url": "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=400"
   }
 ]
