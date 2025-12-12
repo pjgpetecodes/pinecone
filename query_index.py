@@ -17,7 +17,7 @@ sparse_helper = SparseVectorHelper()
 splade_helper = SpladeHelper()
 
 # Configuration
-index_name = "example-index"
+index_name = "demo-hybrid-index"
 top_k = 5  # Number of results to return
 
 # Get the index

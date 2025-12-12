@@ -24,7 +24,7 @@ sparse_helper = SparseVectorHelper()
 splade_helper = SpladeHelper()
 
 # Configuration
-index_name = "example-index"
+index_name = "demo-hybrid-index"
 model_dimensions = 1536  # Azure OpenAI Ada
 import_dir = "import"
 reset_index_on_start = os.getenv("RESET_INDEX_ON_START", "true").lower() == "true"  # default clean slate; set to false to keep data

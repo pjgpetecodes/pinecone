@@ -106,7 +106,7 @@ Upserted batch 2 (50 vectors)
 Total vectors upserted: 150
 
 Indexes:
-  - example-index
+  - demo-hybrid-index
 ```
 
 ### Step 2: Query the Index (dense / sparse / hybrid)
