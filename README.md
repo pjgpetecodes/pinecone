@@ -278,6 +278,39 @@ pinecone/
 │       └── user_images/           # Cached profile images
 └── .env                           # Pinecone API key
 
+## Anomaly Detection (Branch: 05-anomaly-detection)
+
+This branch embeds log events as text and uses Pinecone neighbor similarity to flag outliers.
+
+- Files added:
+  - log_event_schema.py — `LogEvent` dataclass with `to_text()` and metadata.
+  - generate_logs.py — synthetic normal and anomalous events.
+  - pinecone_logs_index.py — index utils (create, upsert).
+  - detect_anomalies.py — CLI to embed, upsert, and list top anomalies.
+
+### Quick Start
+
+1) Set `PINECONE_API_KEY` in `.env` (or environment). For Pinecone Local, use `pclocal`.
+
+2) Create venv and install deps:
+
+```powershell
+python -m venv .venv
+. .venv\Scripts\Activate.ps1
+pip install sentence-transformers pinecone-python python-dotenv
+```
+
+3) Run anomaly detection:
+
+```powershell
+python detect_anomalies.py --count 300 --anomaly_ratio 0.15 --top_k 10
+```
+
+Notes:
+- Embedding model: `sentence-transformers/all-MiniLM-L6-v2` (384-dim, cosine).
+- Index: `log-anomalies-index` (serverless aws/us-east-1).
+- Baseline scoring = 1 − average top-K similarity; refine per service/centroid as desired.
+
 ## Understanding Facial Embeddings
 
 ### What are Facial Embeddings?
