@@ -88,9 +88,9 @@ python pinecone_indexes.py
 
 This will:
 1. Extract paragraphs from the PDF
-2. Generate embeddings using Azure OpenAI
-3. Create a Pinecone index
-4. Upsert all vectors with metadata
+2. Generate **dense (Ada, 1536-dim)** and **sparse (BM25 TF)** vectors
+3. Create a Pinecone index (cosine) if missing
+4. Upsert vectors with metadata into a **company namespace** (e.g., `company-xyz`)
 
 **Output:**
 ```
@@ -109,7 +109,7 @@ Indexes:
   - example-index
 ```
 
-### Step 2: Query the Index
+### Step 2: Query the Index (dense / sparse / hybrid)
 
 Run the query interface:
 
@@ -117,17 +117,13 @@ Run the query interface:
 python query_index.py
 ```
 
-This opens an interactive prompt where you can search:
+You will be prompted for:
+- Company name → namespace `company-{name}` (e.g., `company-acme`)
+- Mode: `dense`, `sparse`, or `hybrid`
+- Use SPLADE for sparse? (default yes; choose no to fall back to TF sparse)
+- Blend weight `alpha` (dense weight, sparse weight = 1 - alpha; default 0.7)
 
-```
-Pinecone Query Interface
-==================================================
-Index: example-index
-Top K Results: 5
-==================================================
-
-Enter your query (or 'quit' to exit): What are the company's financial results?
-```
+Hybrid search sends both dense and sparse vectors; dense-only sends embeddings; sparse-only sends SPLADE (or BM25 TF if you opt out). Adjust `alpha` to show how rankings shift.
 
 **Results display:**
 - All 5 matching results with similarity scores (0-1)
@@ -157,6 +153,40 @@ Company: XYZ
 
 Type `quit` to exit.
 
+### Guided Demo Walkthrough (narrate or copy/paste prompts)
+
+Use these steps in a live demo; each is optional so you can skip if time is tight.
+
+1) Dense-only (baseline)
+- Run `python query_index.py`, choose your company namespace (e.g., `acme`), set mode `dense`.
+- Ask a specific question from the PDF. Note the top result text and score.
+
+2) Sparse-only (lexical)
+- Re-run, set mode `sparse` (same query + namespace).
+- Point out rank/score differences—lexical recall vs semantic.
+
+3) Hybrid (blended)
+- Re-run, set mode `hybrid`, choose `alpha` (e.g., 0.7). `alpha` = dense weight, `(1-alpha)` = sparse.
+- Show how top results reorder and scores shift.
+
+4) Namespaces for efficiency and isolation
+- Ingest multiple companies (place PDFs named `<company>-<year>-file.pdf` into `import/`, run `python pinecone_indexes.py`).
+- Query with the correct namespace (`company-{name}`) and note that results are scoped; switching namespaces yields different answers without reindexing.
+- Call out ingestion efficiency: one index, many namespaces avoids extra indexes and keeps metadata consistent.
+
+5) Dimensions
+- Embeddings are 1536-dim (Ada). Set in `pinecone_indexes.py` (`model_dimensions`).
+- Changing models requires matching dimensions; higher dims increase storage/latency, lower dims reduce size but can reduce recall.
+
+6) Metadata fields
+- Results return metadata (title, company, year, chunk_location, file_name, source_type, ingest_ts).
+- Explain that metadata enables filtering/routing. Example (not yet wired): filter year >= 2022 or source_type == "pdf".
+
+7) Scale & efficiency talking points
+- Batch upserts (100) with brief pause to avoid overload.
+- Sparse choice: SPLADE (default) for better lexical recall; TF fallback is faster/lighter.
+- Hybrid querying keeps payload lean (dense vector + sparse payload) while reusing namespaces for multi-tenant isolation.
+
 ## Project Structure
 
 ```
@@ -165,8 +195,10 @@ pinecone1/
 ├── .env                            # Environment variables (add to .gitignore)
 ├── .gitignore
 ├── README.md
-├── pinecone_indexes.py             # Main indexing script
-├── query_index.py                  # Query interface
+├── pinecone_indexes.py             # Indexing (dense + sparse) per company namespace
+├── query_index.py                  # Query interface with dense/sparse/hybrid modes
+├── sparse_vector_helper.py         # BM25-style sparse vector generation
+├── splade_helper.py                # SPLADE sparse vector generation
 ├── pdf_helper.py                   # PDF extraction utilities
 ├── embedding_helper.py             # Azure OpenAI embedding utilities
 ├── XYZ-2021-Annual_Report.pdf      # Sample PDF file
